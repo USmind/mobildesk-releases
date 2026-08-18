@@ -1,5 +1,5 @@
 {
-  "version": "2.0.2",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.2/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.2: Corrección visual de menús desplegables en nuevo producto, encabezado del manual y opción para recordar usuario."
+  "version": "2.0.3",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.3/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.3: Soporte para Pagos Mixtos y Fraccionados (Divisas, Efectivo, Pago Móvil, Tarjeta, Fiado en una sola venta)."
 }
