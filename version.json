@@ -1,5 +1,5 @@
 {
   "version": "2.0.1",
   "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.1/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.1: Opción para recordar usuario en el inicio de sesión, auto-actualizador silencioso en segundo plano y optimizaciones generales."
+  "changelog": "Versión 2.0.1: Opción para recordar usuario en el inicio de sesión, soporte para auto-actualizaciones en segundo plano y optimizaciones generales."
 }
