@@ -1,9 +1,9 @@
 {
-  "version": "2.0.6",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/Instalar-MobilDesk.exe",
-  "patch_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/patch_v2.0.6.zip",
-  "changelog": "Versión 2.0.6: Corrección del Historial de Ventas (QFrame import), soporte para micro-parches instantáneos y verificación en segundo plano.",
-  "mobile_version": "2.0.6",
-  "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/mobildesk-movil.apk",
-  "mobile_changelog": "Versión 2.0.6: Sincronización en tiempo real optimizada y comprobador de actualizaciones automáticas."
+  "version": "2.0.7",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/patch_v2.0.7.zip",
+  "patch_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/patch_v2.0.7.zip",
+  "changelog": "Versión 2.0.7 (Micro-Parche): Botón Activar Licencia siempre visible en Demos (solo se oculta con Licencia Permanente) + Historial de Ventas optimizado.",
+  "mobile_version": "2.0.7",
+  "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/mobildesk-movil.apk",
+  "mobile_changelog": "Versión 2.0.7: Sincronización optimizada y detector de versión."
 }
