@@ -1,5 +1,9 @@
 {
-  "version": "2.0.5",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.5/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.5: Ajuste responsivo de la barra de totales para laptops/pantallas compactas + Botones compactos + Historial de Ventas mejorado."
+  "version": "2.0.6",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/Instalar-MobilDesk.exe",
+  "patch_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/patch_v2.0.6.zip",
+  "changelog": "Versión 2.0.6: Corrección del Historial de Ventas (QFrame import), soporte para micro-parches instantáneos y verificación en segundo plano.",
+  "mobile_version": "2.0.6",
+  "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.6/mobildesk-movil.apk",
+  "mobile_changelog": "Versión 2.0.6: Sincronización en tiempo real optimizada y comprobador de actualizaciones automáticas."
 }
