@@ -1,8 +1,7 @@
 {
   "version": "2.0.7",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/patch_v2.0.7.zip",
-  "patch_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/patch_v2.0.7.zip",
-  "changelog": "Versión 2.0.7 (Micro-Parche): Botón Activar Licencia siempre visible en Demos (solo se oculta con Licencia Permanente) + Historial de Ventas optimizado.",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.7: Botón Activar Licencia siempre visible en Demos (solo se oculta con Licencia Permanente) + Historial de Ventas optimizado.",
   "mobile_version": "2.0.7",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.7/mobildesk-movil.apk",
   "mobile_changelog": "Versión 2.0.7: Sincronización optimizada y detector de versión."
