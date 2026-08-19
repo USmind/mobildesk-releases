@@ -1,5 +1,5 @@
 {
-  "version": "2.0.4",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.4/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.4: Reloj y Fecha en tiempo real en encabezado + Botón Cancelar/Vaciar Carrito en 1 clic + Módulo Historial de Ventas mejorado y protegido + Auto-actualización al iniciar sesión."
+  "version": "2.0.5",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.5/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.5: Ajuste responsivo de la barra de totales para laptops/pantallas compactas + Botones compactos + Historial de Ventas mejorado."
 }
