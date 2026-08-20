@@ -1,8 +1,8 @@
 {
   "version": "2.0.8",
   "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.8/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.8: Eliminados bordes y rectángulos de selección en tablas y tarjetas métricas + Corrección de stock ficticio en la app móvil.",
+  "changelog": "Versión 2.0.8: Correcciones visuales y optimización.",
   "mobile_version": "2.0.8",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.8/mobildesk-movil.apk",
-  "mobile_changelog": "Versión 2.0.8: Corrección en generación de códigos y stock inicial en nuevos productos."
+  "mobile_changelog": "Versión 2.0.8 Móvil: Unificado módulo de Inventario y Productos, campo de Stock Inicial exacto y eliminación de inventario fantasma."
 }
