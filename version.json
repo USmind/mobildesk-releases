@@ -1,7 +1,7 @@
 {
-  "version": "2.0.9",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.9/Instalar-MobilDesk.exe",
-  "changelog": "VersiÃ³n 2.0.9: Mejoras de seguridad en el sistema de licencias. La activaciÃ³n ahora requiere conexiÃ³n a Internet (solo ese momento); despuÃ©s el programa funciona normal y offline.",
+  "version": "2.0.10",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.10/Instalar-MobilDesk.exe",
+  "changelog": "VersiÃ³n 2.0.10: Interfaz renovada con diseÃ±o profesional y uniforme en todos los mÃ³dulos + IdentificaciÃ³n de equipo mÃ¡s robusta en Windows 11 moderno (no afecta licencias activas).",
   "mobile_version": "2.0.8",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.8/mobildesk-movil.apk",
   "mobile_changelog": "VersiÃ³n 2.0.8: CorrecciÃ³n en generaciÃ³n de cÃ³digos y stock inicial en nuevos productos."
