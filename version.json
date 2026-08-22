@@ -1,8 +1,8 @@
 {
-  "version": "2.0.8",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.8/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.8: Correcciones visuales y optimización.",
+  "version": "2.0.9",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.9/Instalar-MobilDesk.exe",
+  "changelog": "VersiÃ³n 2.0.9: Mejoras de seguridad en el sistema de licencias. La activaciÃ³n ahora requiere conexiÃ³n a Internet (solo ese momento); despuÃ©s el programa funciona normal y offline.",
   "mobile_version": "2.0.8",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.8/mobildesk-movil.apk",
-  "mobile_changelog": "Versión 2.0.8 Móvil: Unificado módulo de Inventario y Productos, campo de Stock Inicial exacto y eliminación de inventario fantasma."
+  "mobile_changelog": "VersiÃ³n 2.0.8: CorrecciÃ³n en generaciÃ³n de cÃ³digos y stock inicial en nuevos productos."
 }
