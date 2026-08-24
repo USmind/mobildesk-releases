@@ -2,7 +2,7 @@
     "version":  "2.0.13",
     "download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.13/Instalar-MobilDesk.exe",
     "changelog":  "Version 2.0.13: Escanea un producto no registrado y crealo al instante desde el POS + licencia publicada en la nube para sincronizar la app movil.",
-    "mobile_version":  "1.1.6",
-    "mobile_download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v1.1.6/mobildesk-movil.apk",
-    "mobile_changelog":  "Version 1.1.6: El codigo de barras escaneado ahora es el codigo del producto - se ve igual en telefono y PC."
+    "mobile_version":  "1.2.0",
+    "mobile_download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v1.2.0/mobildesk-movil.apk",
+    "mobile_changelog":  "Version 1.2.0: Escanea un producto no registrado y crealo al instante. Licencia sincronizada con la PC: mismos dias y horas, bloqueo y desbloqueo automaticos."
 }
