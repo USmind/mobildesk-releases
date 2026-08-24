@@ -1,8 +1,8 @@
 {
-    "version":  "2.0.11",
-    "download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.11/Instalar-MobilDesk.exe",
-    "changelog":  "Version 2.0.11: Correccion - ventana de consola eliminada al cambiar de modulo + navegacion mas rapida + codigo de barras en POS y editor.",
-    "mobile_version":  "1.1.3",
-    "mobile_download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v1.1.3/mobildesk-movil.apk",
-    "mobile_changelog":  "Versión 1.1.3: Soporte completo de código de barras en app y POS. Escáner busca por código de barras primero. Editor de productos con campo código de barras."
+    "version":  "2.0.12",
+    "download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.12/Instalar-MobilDesk.exe",
+    "changelog":  "Version 2.0.12: Codigo de barras completo - campo Codigo escaneable con lector USB, editor simplificado y POS busca por codigo de barras.",
+    "mobile_version":  "1.1.4",
+    "mobile_download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v1.1.4/mobildesk-movil.apk",
+    "mobile_changelog":  "Version 1.1.4: Codigo de barras en editor, escaneo por codigo de barras primero, errores en espanol y actualizaciones corregidas."
 }
