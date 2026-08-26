@@ -1,7 +1,7 @@
 {
-    "version":  "2.0.14",
-    "download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.14/Instalar-MobilDesk.exe",
-    "changelog":  "Version 2.0.14: Corregido el escaneo en el POS + rebranding MobilDesk + tablas mas limpias.",
+    "version":  "2.0.15",
+    "download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.15/Instalar-MobilDesk.exe",
+    "changelog":  "Version 2.0.15: Optimizacion y correccion de textos. Rebranding MobilDesk completo en todo el programa.",
     "mobile_version":  "1.2.0",
     "mobile_download_url":  "https://github.com/USmind/mobildesk-releases/releases/download/v1.2.0/mobildesk-movil.apk",
     "mobile_changelog":  "Version 1.2.0: Escanea un producto no registrado y crealo al instante. Licencia sincronizada con la PC: mismos dias y horas, bloqueo y desbloqueo automaticos."
