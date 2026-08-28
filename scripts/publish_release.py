@@ -11,9 +11,9 @@ if not TOKEN:
     raise SystemExit("GITHUB_TOKEN no configurado. Exporta la variable de entorno antes de publicar.")
 REPO_OWNER = "USmind"
 REPO_NAME = "mobildesk-releases"
-VERSION = "v2.0.18"
-CLEAN_VERSION = "2.0.18"
-CHANGELOG = "Versión 2.0.18: Corrige bucle infinito de actualización (CURRENT_VERSION sincronizado)."
+VERSION = "v2.0.19"
+CLEAN_VERSION = "2.0.19"
+CHANGELOG = "Versión 2.0.19: Sincronización de licencia inmediata tras activar + botón Sincronizar Licencia en UI."
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 INSTALLER_PATH = BASE_DIR / "compilados" / "Instalar-MobilDesk.exe"

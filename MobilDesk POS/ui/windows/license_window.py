@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from modules.licencia.license_service import (
     init_or_get_license_info,
-    activate_system_license
+    activate_system_license,
+    republicar_licencia_actual
 )
 
 
@@ -146,6 +147,11 @@ class LicenseWindow(QDialog):
 
         actions.addStretch()
 
+        btn_sync_lic = QPushButton("☁️ Sincronizar Licencia")
+        btn_sync_lic.setStyleSheet("background: #0891b2; color: white; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 13px;")
+        btn_sync_lic.clicked.connect(self.republicar_licencia)
+        actions.addWidget(btn_sync_lic)
+
         btn_activar = QPushButton("✅ Activar Licencia")
         btn_activar.setStyleSheet("background: #2563eb; color: white; padding: 9px 22px; border-radius: 8px; font-weight: 700; font-size: 14px;")
         btn_activar.clicked.connect(self.procesar_activacion)
@@ -196,3 +202,12 @@ class LicenseWindow(QDialog):
                 self.accept()
         else:
             QMessageBox.critical(self, "Error de Activación", msg)
+
+    def republicar_licencia(self):
+        ok, msg = republicar_licencia_actual()
+        if ok:
+            QMessageBox.information(self, "Sincronizado", msg + "\n\nAhora sincroniza en tu móvil para que reciba la licencia.")
+            self.licencia_actualizada.emit()
+            self.cargar_estado()
+        else:
+            QMessageBox.warning(self, "Error", msg)

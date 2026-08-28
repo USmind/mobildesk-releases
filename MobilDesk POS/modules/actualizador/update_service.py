@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
-CURRENT_VERSION = "2.0.18"
+CURRENT_VERSION = "2.0.19"
 APP_NAME = "MobilDesk"
 
 # URLs de actualización (GitHub / Servidor)

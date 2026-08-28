@@ -234,8 +234,8 @@ def init_or_get_license_info() -> dict:
                 """,
                 (machine_id, now_str, demo_expiry.isoformat(), now_str)
             )
-            conn.commit()
             _publicar_licencia_nube(conn, "demo", "demo", demo_expiry.isoformat())
+            conn.commit()
             return {
                 "estado": "demo",
                 "plan_nombre": "Prueba Gratuita (Demo)",
@@ -329,6 +329,44 @@ def init_or_get_license_info() -> dict:
         conn.close()
 
 
+def republicar_licencia_actual() -> tuple[bool, str]:
+    """
+    Fuerza la republicación del estado actual de la licencia a la nube.
+    Útil si la sincronización falló o para forzar la actualización inmediata en el móvil.
+    Retorna (ok, mensaje).
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT plan_activo, fecha_expiracion, clave_activacion FROM system_license WHERE id = 1")
+        row = cursor.fetchone()
+        if not row:
+            return False, "No hay licencia registrada."
+
+        plan_activo = row["plan_activo"]
+        fecha_exp = row["fecha_expiracion"]
+        clave = row["clave_activacion"]
+
+        if plan_activo == "vitalicio":
+            _publicar_licencia_nube(conn, "vitalicio", "vitalicio", "9999-12-31T23:59:59")
+        elif plan_activo == "demo":
+            _publicar_licencia_nube(conn, "demo", "demo", fecha_exp)
+        elif plan_activo in ("mensual", "anual", "demo_extendida"):
+            if clave:
+                _publicar_licencia_nube(conn, "activo", plan_activo, fecha_exp)
+            else:
+                _publicar_licencia_nube(conn, "expirado", plan_activo, fecha_exp)
+        else:
+            _publicar_licencia_nube(conn, "expirado", "desconocido", fecha_exp)
+
+        conn.commit()
+        return True, "Estado de licencia republicado a la nube. Sincroniza en el móvil para ver los cambios."
+    except Exception as e:
+        return False, f"Error al republicar: {e}"
+    finally:
+        conn.close()
+
+
 def activate_system_license(key: str) -> tuple[bool, str]:
     """
     Aplica una clave de activación validándola contra el servidor oficial.
@@ -374,9 +412,9 @@ def activate_system_license(key: str) -> tuple[bool, str]:
             """,
             (plan_db, key.strip().upper(), now_str, exp_iso, now_str)
         )
-        conn.commit()
         estado_nube = "vitalicio" if plan_db == "vitalicio" else "activo"
         _publicar_licencia_nube(conn, estado_nube, plan_db, exp_iso)
+        conn.commit()
         return True, f"¡Licencia activada con éxito! ({det['plan_nombre']} activo hasta {det['fecha_expiracion']})"
     finally:
         conn.close()
