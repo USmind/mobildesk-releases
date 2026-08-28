@@ -1,0 +1,2 @@
+ALTER TABLE sales ADD COLUMN monto_recibido_usd REAL;
+ALTER TABLE sales ADD COLUMN vuelto_usd REAL NOT NULL DEFAULT 0;

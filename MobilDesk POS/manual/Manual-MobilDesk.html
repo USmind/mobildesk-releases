@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manual Oficial de Usuario y Guía Comercial - MobilDesk POS</title>
+  <style>
+    :root {
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --green: #16a34a;
+      --green-light: #f0fdf4;
+      --orange: #ea580c;
+      --orange-light: #fff7ed;
+      --purple: #7c3aed;
+      --purple-light: #f5f3ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+      color: white;
+      padding: 50px 40px;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 36px;
+      margin: 0 0 10px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 17px;
+      color: #bfdbfe;
+      max-width: 840px;
+    }
+
+    .toc {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 28px 32px;
+      margin-bottom: 36px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+      border: 1px solid var(--border);
+    }
+
+    .toc h3 {
+      margin-top: 0;
+      font-size: 16px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px 24px;
+    }
+
+    .toc a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+      color: #1d4ed8;
+    }
+
+    .section-card {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 34px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+      border: 1px solid var(--border);
+    }
+
+    .section-card h2 {
+      margin-top: 0;
+      color: var(--primary);
+      font-size: 23px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: var(--green-light); color: var(--green); }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
+
+    .step-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+
+    .step-box h4 {
+      margin: 0 0 8px;
+      color: #0f172a;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .step-box p, .step-box ul {
+      margin: 0;
+      color: #334155;
+      font-size: 14px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin: 22px 0;
+    }
+
+    .feature-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .feature-item h4 {
+      margin: 0 0 8px;
+      color: #0f172a;
+      font-size: 15.5px;
+    }
+
+    .feature-item p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+
+    .callout {
+      background: #eff6ff;
+      border-left: 5px solid #2563eb;
+      padding: 16px 20px;
+      border-radius: 0 12px 12px 0;
+      margin: 18px 0;
+      font-size: 14px;
+      color: #1e3a8a;
+    }
+
+    .callout-success {
+      background: #f0fdf4;
+      border-left-color: #16a34a;
+      color: #14532d;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      margin-top: 50px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <h1>🏪 MobilDesk POS & Gestión Móvil</h1>
+      <span class="badge badge-green" style="font-size: 13px; padding: 7px 16px;">Versión Comercial 2026</span>
+    </div>
+    <p>Manual oficial de operación diaria, configuración multimoneda, control de fiados y sincronización automática en tiempo real entre Windows y Android.</p>
+  </header>
+
+  <div class="toc">
+    <h3>Índice Rápido de Contenido</h3>
+    <div class="toc-grid">
+      <a href="#cap1">1. Instalación en Windows</a>
+      <a href="#cap2">2. Configuración Inicial del Comercio</a>
+      <a href="#cap3">3. Tasa USD / Bs y Margen de Ganancia</a>
+      <a href="#cap4">4. Módulo Unificado de Inventario y Productos</a>
+      <a href="#cap5">5. Calculadora de Precios y Ganancia en Vivo</a>
+      <a href="#cap6">6. Punto de Venta (POS) y Cobro Multimoneda</a>
+      <a href="#cap7">7. Módulo de Fiados y Cuentas por Cobrar</a>
+      <a href="#cap8">8. Historial de Ventas e Impresión de Tickets</a>
+      <a href="#cap9">9. Reportes Financieros y Cierre de Caja</a>
+      <a href="#cap10">10. Sincronización Automática en la Nube</a>
+      <a href="#cap11">11. App Android (MobilDesk Móvil)</a>
+      <a href="#cap12">12. Sistema de Licencias y Argumentos de Venta</a>
+    </div>
+  </div>
+
+  <!-- Cap 1 -->
+  <div class="section-card" id="cap1">
+    <h2>1. Instalación en Windows <span class="badge badge-blue">Instalador Oficial</span></h2>
+    <p>MobilDesk POS está preparado para funcionar en cualquier computadora con <strong>Windows 10 u 11</strong> de 64 bits de forma rápida y sin configuraciones complejas.</p>
+    <div class="step-box">
+      <h4>Pasos de Instalación:</h4>
+      <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #334155;">
+        <li>Haz doble clic en <strong><code>Instalar-MobilDesk.exe</code></strong>.</li>
+        <li>Selecciona el idioma y pulsa <em>Siguiente</em>.</li>
+        <li>El instalador creará automáticamente el acceso directo en tu Escritorio y en el menú de Inicio.</li>
+        <li>Al finalizar, marca la casilla <em>"Ejecutar MobilDesk POS"</em> y pulsa <em>Finalizar</em>.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Cap 2 -->
+  <div class="section-card" id="cap2">
+    <h2>2. Configuración Inicial del Comercio <span class="badge badge-purple">Primer Uso</span></h2>
+    <p>Al abrir el programa por primera vez, verás el <strong>Asistente de Bienvenida</strong>:</p>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <h4>🏪 Nombre del Negocio</h4>
+        <p>Escribe el nombre comercial (ej: <em>Bodega San José</em>, <em>Minimarket Express</em>). Aparecerá en todas las pantallas y tickets.</p>
+      </div>
+      <div class="feature-item">
+        <h4>👤 Usuario Administrador</h4>
+        <p>Define tu nombre, usuario (ej: <code>admin</code>) y una contraseña segura para el acceso diario.</p>
+      </div>
+      <div class="feature-item">
+        <h4>🔑 Código de Negocio</h4>
+        <p>El sistema genera automáticamente un código único (ej: <code>MOBIL-4891</code>). Este código se utiliza para enlazar el teléfono celular.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cap 3 -->
+  <div class="section-card" id="cap3">
+    <h2>3. Tasa USD / Bs y Margen de Ganancia <span class="badge badge-green">Recálculo en Vivo</span></h2>
+    <p>El sistema opera en modalidad <strong>multimoneda nativa (Dólares y Bolívares)</strong>:</p>
+    <div class="callout callout-success">
+      <strong>⚡ Recálculo Automático:</strong> Al cambiar la tasa del dólar en la computadora o en el teléfono, <strong>todos los precios de los productos y los totales de ventas se recalculan automáticamente</strong> sin tener que reiniciar ni pulsar botones adicionales.
+    </div>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <h4>💲 Tasa de Cambio Oficial</h4>
+        <p>Ingresa el valor del dólar en Bolívares (ej: <code>770.00</code>). Incluye botón de <em>Redondear</em> para ajustar a números enteros.</p>
+      </div>
+      <div class="feature-item">
+        <h4>📈 Margen de Ganancia Estándar</h4>
+        <p>Configura tu porcentaje de beneficio (ej: <code>30%</code>). Incluye botones rápidos de 15%, 20%, 30%, 40% y 50%.</p>
+      </div>
+      <div class="feature-item">
+        <h4>💡 Simulador en Vivo</h4>
+        <p>Te muestra al instante: <em>"Un producto de $1.00 USD con margen del 30% se venderá a $1.30 USD (Bs 1,001.00)"</em>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cap 4 -->
+  <div class="section-card" id="cap4">
+    <h2>4. Módulo Unificado de Inventario y Productos <span class="badge badge-blue">Todo en Uno</span></h2>
+    <p>MobilDesk reúne la administración completa del catálogo y stock en una sola pantalla moderna:</p>
+    <ul>
+      <li><strong>➕ Nuevo Producto:</strong> Registro ágil con código automático o lector de código de barras.</li>
+      <li><strong>✏️ Modificar:</strong> Actualiza nombres, marcas, categorías y precios al instante.</li>
+      <li><strong>📥 Entrada de Stock:</strong> Suma existencias cuando recibes compras de proveedores.</li>
+      <li><strong>⚖️ Ajuste de Stock:</strong> Registra mermas, productos dañados o cuadres físicos.</li>
+      <li><strong>📋 Historial de Movimientos:</strong> Registro con fecha, hora, usuario y motivo de cada movimiento.</li>
+      <li><strong>🗑️ Eliminar Producto:</strong> Remueve productos obsoletos con confirmación de seguridad.</li>
+    </ul>
+  </div>
+
+  <!-- Cap 5 -->
+  <div class="section-card" id="cap5">
+    <h2>5. Calculadora Inteligente de Precios y Ganancia</h2>
+    <p>Al crear o modificar cualquier producto en MobilDesk, dispones de un simulador en tiempo real:</p>
+    <div class="step-box">
+      <h4>Simulación en Tiempo Real:</h4>
+      <p>1. Ingresa el <strong>Costo Base en USD</strong> (ej: $1.00).<br>
+      2. Selecciona tu <strong>Margen de Ganancia</strong> (ej: 30%).<br>
+      3. El sistema calcula en vivo el <strong>Precio Final en USD ($1.30)</strong> y su equivalente exacto en <strong>Bolívares (Bs 1,001.00)</strong> según la tasa activa.<br>
+      4. O si prefieres, escribe directamente el precio de venta y el sistema calculará tu margen automáticamente.</p>
+    </div>
+  </div>
+
+  <!-- Cap 6 -->
+  <div class="section-card" id="cap6">
+    <h2>6. Punto de Venta (POS) y Cobro Multimoneda <span class="badge badge-blue">Alta Velocidad</span></h2>
+    <p>La pantalla principal está diseñada para atender clientes en segundos:</p>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <h4>🔍 Búsqueda Rápida</h4>
+        <p>Escribe el código o las primeras letras del nombre del producto y pulsa Enter para agregarlo al carrito.</p>
+      </div>
+      <div class="feature-item">
+        <h4>💳 Métodos de Pago</h4>
+        <p>Efectivo (Bs), Divisas ($), Pago Móvil, Punto de Venta (Tarjeta), Fiado / Crédito y <strong>Pago Mixto / Fraccionado</strong>.</p>
+      </div>
+      <div class="feature-item">
+        <h4>🪙 Calculadora de Vuelto</h4>
+        <p>Al pagar en Efectivo o Dólares, ingresa cuánto entrega el cliente y el sistema calcula exactamente el vuelto en Bolívares y USD.</p>
+      </div>
+    </div>
+    <div class="step-box" style="margin-top: 16px;">
+      <h4>🔀 ¿Cómo cobrar con Pago Mixto / Fraccionado?</h4>
+      <p>1. En el selector de Método de Pago, elige <strong>🔀 Pago Mixto / Fraccionado</strong>.<br>
+      2. Pulsa <em>'Configurar Desglose'</em> o directamente <em>'Registrar Venta'</em>.<br>
+      3. Ingresa los montos en cada forma de pago que use el cliente (ej: <code>$5.00 en divisas</code>, <code>200 Bs en efectivo</code> y <code>450 Bs en Pago Móvil</code>).<br>
+      4. El sistema calculará en tiempo real el Total Abonado, el Restante y el Vuelto exacto si pagó de más.<br>
+      5. Pulsa <em>'Confirmar Pago Mixto'</em> y el ticket impreso saldrá con el desglose exacto y el arqueo de caja se cuadrará solo.</p>
+    </div>
+  </div>
+
+  <!-- Cap 7 -->
+  <div class="section-card" id="cap7">
+    <h2>7. Módulo de Fiados y Cuentas por Cobrar <span class="badge badge-orange">Cero Pérdidas</span></h2>
+    <p>Lleva el control de fiados a clientes de confianza sin cuadernos ni hojas sueltas:</p>
+    <div class="step-box">
+      <h4>¿Cómo registrar una venta a crédito?</h4>
+      <p>En el Punto de Venta, selecciona el método <strong>Fiado</strong>, escribe el nombre del cliente (ej: <em>Carlos Pérez</em>), su teléfono y pulsa <em>Registrar Venta</em>.</p>
+    </div>
+    <div class="step-box">
+      <h4>¿Cómo registrar un abono o cobrar?</h4>
+      <p>1. Ve al módulo <strong>👥 Fiados / Créditos</strong>.<br>
+      2. Selecciona la fila del cliente o haz doble clic.<br>
+      3. Pulsa el botón verde <strong>💵 Registrar Abono / Pago</strong>.<br>
+      4. Verás el nuevo diálogo detallado con el total de la venta y el saldo pendiente. Puedes usar los botones rápidos <strong>[Pagar Todo (100%)]</strong> o <strong>[Pagar la Mitad (50%)]</strong> o ingresar un monto personalizado.<br>
+      5. Pulsa <em>Confirmar Abono</em> y el saldo se actualizará al instante.</p>
+    </div>
+    <div class="step-box">
+      <h4>📋 Historial de Abonos:</h4>
+      <p>Pulsa <strong>Ver Historial de Abonos</strong> para ver todos los pagos previos con fecha, hora y monto exacto abonado.</p>
+    </div>
+  </div>
+
+  <!-- Cap 8 -->
+  <div class="section-card" id="cap8">
+    <h2>8. Historial de Ventas e Impresión de Tickets</h2>
+    <p>Accede a todas las ventas registradas con un solo clic:</p>
+    <ul>
+      <li>Filtro directo por: <strong>Solo Hoy</strong> o <strong>Historial Completo</strong>.</li>
+      <li>Buscador instantáneo por número de factura, cajero, cliente o método de pago.</li>
+      <li><strong>Impresión Térmica:</strong> Compatible con impresoras térmicas de <strong>58mm y 80mm</strong> y exportación a PDF.</li>
+    </ul>
+  </div>
+
+  <!-- Cap 9 -->
+  <div class="section-card" id="cap9">
+    <h2>9. Reportes Financieros y Cierre de Caja</h2>
+    <p>Información clara y transparente para el comerciante:</p>
+    <ul>
+      <li><strong>Total Vendido del Día:</strong> Desglose por Efectivo, Divisas, Pago Móvil, Punto, Fiados y Pagos Mixtos.</li>
+      <li><strong>Ganancia Estimada:</strong> Cálculo automático de utilidad restando el costo de los productos vendidos.</li>
+      <li><strong>Arqueo y Cierre de Caja:</strong> Cuadre de caja por turno para evitar faltantes de dinero físico o bancario.</li>
+    </ul>
+  </div>
+
+  <!-- Cap 10 -->
+  <div class="section-card" id="cap10">
+    <h2>10. Sincronización Automática en la Nube <span class="badge badge-green">En Tiempo Real</span></h2>
+    <p>MobilDesk cuenta con un motor de sincronización bidireccional instantáneo en la nube:</p>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <h4>⚡ ¿Qué se sincroniza?</h4>
+        <p><strong>TODO:</strong> Tasa oficial del dólar, catálogo de productos, inventario, ventas de cajeros/administradores, clientes, fiados y abonos.</p>
+      </div>
+      <div class="feature-item">
+        <h4>📱 ¿Cómo se conecta el teléfono?</h4>
+        <p>En el teléfono solo ingresas el <strong>Código de Negocio</strong> y listo. No pide correos ni configuraciones técnicas.</p>
+      </div>
+      <div class="feature-item">
+        <h4>🛡️ Modo Autónomo / Offline</h4>
+        <p>Si se cae el Internet, el sistema sigue funcionando normalmente en la PC y en el teléfono. Al regresar la conexión, se envían los datos automáticamente.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cap 11 -->
+  <div class="section-card" id="cap11">
+    <h2>11. App Android (MobilDesk Móvil) & Multi-Teléfonos <span class="badge badge-purple">Tu Negocio en el Bolsillo</span></h2>
+    <p>La aplicación móvil para teléfonos Android permite gestionar el negocio desde cualquier lugar:</p>
+    <ul>
+      <li><strong>Varios Teléfonos al Mismo Tiempo:</strong> Puedes instalar <code>mobildesk-movil.apk</code> en tantos teléfonos Android como desees (dueño, cajero, repartidor, inventario) usando el mismo Código de Negocio.</li>
+      <li><strong>Cambio Rápido de Tasa:</strong> Toca la tarjeta de Tasa USD/Bs en el teléfono para cambiar el valor del dólar en 3 segundos y actualizar la PC de una vez.</li>
+      <li><strong>Ventas en el Pasillo / Almacén:</strong> Registra ventas directas desde el celular mientras atiendes a un cliente.</li>
+      <li><strong>Consulta de Precios:</strong> Busca cualquier producto para ver su precio actualizado en Bolívares y Dólares.</li>
+      <li><strong>Gestión de Fiados Móvil:</strong> Revisa quién te debe y registra abonos desde la calle.</li>
+    </ul>
+  </div>
+
+  <!-- Cap 12 -->
+  <div class="section-card" id="cap12">
+    <h2>12. Actualizaciones Remotas Automáticas <span class="badge badge-green">Siempre al Día</span></h2>
+    <p>MobilDesk POS incluye un sistema de auto-actualización silencioso en segundo plano:</p>
+    <div class="step-box">
+      <h4>¿Cómo funciona la actualización?</h4>
+      <p>1. Al abrir el programa conectado a internet, busca de forma invisible si existe una nueva versión.<br>
+      2. Descarga el paquete en segundo plano sin interrumpir la atención a los clientes.<br>
+      3. Muestra el botón verde <strong>'🚀 ¡Actualización vX.X lista!'</strong> en la parte superior.<br>
+      4. Al hacer clic, se actualiza en 10 segundos, <strong>se vuelve a abrir solo automáticamente</strong> y mantiene 100% intactas tus ventas, inventario y configuraciones.</p>
+    </div>
+  </div>
+
+  <!-- Cap 13 -->
+  <div class="section-card" id="cap13">
+    <h2>13. Sistema de Licencias y Argumentos de Venta</h2>
+    <p>Puntos clave para presentar y vender el sistema a dueños de bodegas, minimarkets y comercios:</p>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <h4>💎 Plan Vitalicio (Pago Único)</h4>
+        <p>Sin mensualidades forzadas. Una vez activado, el módulo de licencias desaparece y el sistema queda permanentemente activo.</p>
+      </div>
+      <div class="feature-item">
+        <h4>🎁 Demo de 7 Días Silencioso</h4>
+        <p>Permite a tus clientes probar el programa completo sin compromisos.</p>
+      </div>
+      <div class="feature-item">
+        <h4>📦 Kit de Entrega Completo</h4>
+        <p>Incluye el instalador para PC (.exe), la aplicación móvil Android (.apk) y este manual listo para tus clientes.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 MobilDesk POS. Sistema Integral de Punto de Venta y Gestión Móvil para Comercios.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

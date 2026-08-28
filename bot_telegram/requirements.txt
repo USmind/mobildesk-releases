@@ -1,0 +1,2 @@
+# No se requieren librerías externas.
+# El bot utiliza exclusivamente la librería estándar de Python 3.

@@ -1,0 +1,3 @@
+ALTER TABLE sales ADD COLUMN metodo_pago TEXT NOT NULL DEFAULT 'efectivo';
+ALTER TABLE sales ADD COLUMN monto_recibido_bs REAL;
+ALTER TABLE sales ADD COLUMN vuelto_bs REAL NOT NULL DEFAULT 0;

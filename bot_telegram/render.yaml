@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mobildesk-keybot
+    env: python
+    buildCommand: ""
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        value: 8423198089:AAE88-5Er5Isjlu4_dGGnfsYboqRgv6613k
+      - key: PASSWORD_AUTORIZACION
+        value: mobiladmin2026

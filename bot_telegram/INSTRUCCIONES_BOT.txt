@@ -1,0 +1,37 @@
+=============================================================================
+🤖 GUÍA RÁPIDA: CÓMO CREAR Y USAR TU BOT DE LICENCIAS EN TELEGRAM
+=============================================================================
+
+PASO 1: CREAR EL BOT EN TELEGRAM (Solo toma 1 minuto)
+-----------------------------------------------------------------------------
+1. Abre Telegram en tu teléfono o PC y busca a: @BotFather (tiene la tilde azul).
+2. Presiona "Iniciar" o envíale el comando: /newbot
+3. Te pedirá un nombre para tu bot. Escribe: MobilDesk Licencias
+4. Te pedirá un nombre de usuario (debe terminar en bot). Ejemplo: mobildesk_licencias_bot
+5. ¡Listo! @BotFather te dará un mensaje con un TOKEN HTTP API largo que se ve así:
+   7123456789:AAFxAbCdEfGhIjKlMnOpQrStUvWxYz12345
+
+PASO 2: INICIAR EL BOT
+-----------------------------------------------------------------------------
+1. Haz doble clic en el archivo "iniciar_bot.bat" (o ejecuta python bot_licencias.py).
+2. Pega el Token que te dio @BotFather y presiona Enter.
+3. ¡El bot se conectará y quedará activo escuchando tus mensajes!
+
+PASO 3: CÓMO GENERAR CLAVES DESDE TU TELÉFONO
+-----------------------------------------------------------------------------
+1. Abre Telegram en tu celular y busca a tu bot (ej. @mobildesk_licencias_bot).
+2. Presiona "Iniciar" (o envía /start).
+3. Pega el Código de Computadora que te mandó el cliente (ej: KP-89FA-31BC-10D2).
+4. El bot te mostrará botones para elegir el plan:
+   - 💎 Vitalicio (Permanente)
+   - 📅 Anual (365 Días)
+   - ⏳ Mensual (30 Días)
+   - 🎁 Demo Extendida (15 Días)
+5. Al tocar un botón, el bot te enviará la clave y el mensaje listo formateado
+   para que solo lo copies y se lo pegues a tu cliente por WhatsApp.
+
+SEGURIDAD TOTAL:
+-----------------------------------------------------------------------------
+- El bot reconoce automáticamente tu usuario de Telegram como el único administrador.
+- Nadie más podrá generar claves a menos que tenga tu contraseña de autorización.
+=============================================================================

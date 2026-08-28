@@ -1,0 +1,12 @@
+﻿BIENVENIDO AL INSTALADOR DE MOBILDESK POS!
+
+MobilDesk POS es un sistema integral de punto de venta, inventario,
+fiados, caja y reportes para tu comercio.
+
+Incluye:
+ - Ventas rapidas con codigo de barras (lector USB y escaner movil).
+ - Inventario y productos siempre al dia.
+ - Sincronizacion en la nube bidireccional con la App Movil Android.
+ - Reportes de ventas y ganancias exportables.
+
+Recomendacion: cierra cualquier otra aplicacion antes de continuar.
