@@ -1,7 +1,7 @@
 {
-  "version": "2.0.17",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.17/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.17: Sincronización de licencia PC ↔ App corregida (revalidación automática) + pagos mixtos.",
+  "version": "2.0.18",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.18/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.18: Corrige bucle infinito de actualización (CURRENT_VERSION sincronizado).",
   "mobile_version": "1.2.1",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.16/mobildesk-movil.apk",
   "mobile_changelog": "Versión 1.2.1: Pagos mixtos / fraccionados en app móvil (5 métodos combinables) + correcciones."
