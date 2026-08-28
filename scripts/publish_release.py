@@ -11,9 +11,9 @@ if not TOKEN:
     raise SystemExit("GITHUB_TOKEN no configurado. Exporta la variable de entorno antes de publicar.")
 REPO_OWNER = "USmind"
 REPO_NAME = "mobildesk-releases"
-VERSION = "v2.0.16"
-CLEAN_VERSION = "2.0.16"
-CHANGELOG = "Versión 2.0.16: Corrección de símbolos en instalación inicial, sincronización de licencia mejorada y pagos mixtos en app móvil."
+VERSION = "v2.0.17"
+CLEAN_VERSION = "2.0.17"
+CHANGELOG = "Versión 2.0.17: Sincronización de licencia PC ↔ App corregida (revalidación automática) + pagos mixtos."
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 INSTALLER_PATH = BASE_DIR / "compilados" / "Instalar-MobilDesk.exe"
@@ -42,7 +42,7 @@ def update_or_create_version_json():
         "download_url": f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/{VERSION}/Instalar-MobilDesk.exe",
         "changelog": CHANGELOG,
         "mobile_version": "1.2.1",
-        "mobile_download_url": f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/{VERSION}/mobildesk-movil.apk",
+        "mobile_download_url": f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/download/v2.0.16/mobildesk-movil.apk",
         "mobile_changelog": "Versión 1.2.1: Pagos mixtos / fraccionados en app móvil (5 métodos combinables) + correcciones."
     }
     raw_json = json.dumps(version_content, indent=2, ensure_ascii=False)

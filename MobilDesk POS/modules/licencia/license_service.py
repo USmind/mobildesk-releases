@@ -177,14 +177,20 @@ def _revalidar_silenciosa(clave: str, machine_id: str):
         estado, _msg, det = validar_clave_en_servidor(machine_id, clave, timeout=5)
 
         if estado == "valida":
+            exp_iso = det.get("fecha_expiracion_iso") or ""
             cursor.execute(
                 """
                 UPDATE system_license
                 SET fecha_expiracion = ?, ultima_verificacion = ?
                 WHERE id = 1
                 """,
-                (det.get("fecha_expiracion_iso") or "", now.isoformat())
+                (exp_iso, now.isoformat())
             )
+            # Sincronizar nueva fecha con la app móvil (mismos días/horas)
+            plan_cod = det.get("plan_codigo") or "A"
+            plan_db = "vitalicio" if plan_cod == "V" else {"M": "mensual", "A": "anual"}.get(plan_cod, "demo_extendida")
+            estado_nube = "vitalicio" if plan_db == "vitalicio" else "activo"
+            _publicar_licencia_nube(conn, estado_nube, plan_db, exp_iso)
         else:
             # Sin conexión o rechazo puntual: solo registrar el intento.
             cursor.execute(
