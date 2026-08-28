@@ -1,8 +1,8 @@
 {
-  "version": "2.0.15",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.15/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.15: Corrección visual de caracteres y símbolos especiales en la interfaz de inventario y optimización general.",
-  "mobile_version": "2.0.15",
-  "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.15/mobildesk-movil.apk",
-  "mobile_changelog": "Versión 2.0.15: Sincronización y catálogo de productos corregido."
+  "version": "2.0.16",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.16/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.16: Corrección de símbolos en instalación inicial, sincronización de licencia mejorada y pagos mixtos en app móvil.",
+  "mobile_version": "1.2.1",
+  "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.16/mobildesk-movil.apk",
+  "mobile_changelog": "Versión 1.2.1: Pagos mixtos / fraccionados en app móvil (5 métodos combinables) + correcciones."
 }

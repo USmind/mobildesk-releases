@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+build_kiosko/
+package/
+dist/
+*.spec
+*.egg-info/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.lock
+.pub-cache/
+.pub/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Binaries / releases - use GitHub Releases instead
+compilados/
+release/
+outputs/Kit_Cliente*
+outputs/*.zip
+*.exe
+*.apk
+!MobilDesk POS/assets/*.ico
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Temp
+*.tmp
+*.temp
