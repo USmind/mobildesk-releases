@@ -525,20 +525,26 @@ class AppState extends ChangeNotifier {
 
     try {
       // 1. Enviar eventos locales pendientes (outbox)
+      // Un duplicado (23505) significa que el evento ya está en la nube:
+      // se descarta localmente en vez de abortar toda la sincronización.
       final outboxCopy = List<Map<String, dynamic>>.from(outbox);
       for (final event in outboxCopy) {
-        await _authenticatedApi(
-          '/rest/v1/kiosko_sync_events',
-          'POST',
-          {
-            'id': toValidUuid(event['id']),
-            'negocio_id': validUuid,
-            'dispositivo_id': toValidUuid('movil-$validUuid'),
-            'tipo': event['tipo'],
-            'datos': event['datos'],
-            'creado_en': event['creado_en'],
-          },
-        );
+        try {
+          await _authenticatedApi(
+            '/rest/v1/kiosko_sync_events',
+            'POST',
+            {
+              'id': toValidUuid(event['id']),
+              'negocio_id': validUuid,
+              'dispositivo_id': toValidUuid('movil-$validUuid'),
+              'tipo': event['tipo'],
+              'datos': event['datos'],
+              'creado_en': event['creado_en'],
+            },
+          );
+        } catch (e) {
+          if (!_isDuplicateKeyError(e.toString())) rethrow;
+        }
         outbox.removeWhere((e) => e['id'] == event['id']);
       }
 
@@ -577,8 +583,15 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  String _translateError(String raw) {
+  bool _isDuplicateKeyError(String raw) {
     final lower = raw.toLowerCase();
+    return lower.contains('duplicate key') ||
+        lower.contains('23505') ||
+        lower.contains('kiosko_sync_events_pkey') ||
+        lower.contains('already exists');
+  }
+
+  String _translateError(String raw) {    final lower = raw.toLowerCase();
     if (lower.contains('permission denied') || lower.contains('42501') || lower.contains('401')) {
       return 'Faltan permisos en Supabase. Ejecuta el script SQL en tu panel de Supabase.';
     }

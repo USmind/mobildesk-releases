@@ -36,6 +36,22 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def _is_duplicate_key_error(detail):
+    """Detecta el error 23505 de Postgres: el evento ya existe en la nube.
+
+    Ocurre cuando el primer POST sí llegó al servidor pero la respuesta se
+    perdió (timeout/red) y el reintento envía el mismo id. Es seguro tratarlo
+    como éxito: el dato ya está guardado.
+    """
+    msg = str(detail).lower()
+    return (
+        "duplicate key" in msg
+        or "23505" in msg
+        or "kiosko_sync_events_pkey" in msg
+        or "already exists" in msg
+    )
+
+
 def _translate_error(detail, status_code=None):
     """Traduce cualquier error técnico a un mensaje claro y amigable en español."""
     msg = str(detail).lower()
@@ -424,6 +440,13 @@ def sync_now():
                 connection.commit()
                 sent += 1
             except Exception as error:
+                if _is_duplicate_key_error(error):
+                    # El evento ya está en la nube: marcar como enviado y seguir.
+                    connection.execute("UPDATE sync_outbox SET enviado_en=?, ultimo_error=NULL WHERE id=?", (_now(), row["id"]))
+                    connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (row["id"],))
+                    connection.commit()
+                    sent += 1
+                    continue
                 connection.execute("UPDATE sync_outbox SET ultimo_error=? WHERE id=?", (str(error), row["id"]))
                 _save_setting(connection, "ultimo_error_global", str(error))
                 connection.commit()

@@ -56,25 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E3A8A),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1E3A8A).withAlpha(40),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                ),
-                child: const Icon(
-                  Icons.storefront_rounded,
-                  size: 46,
-                  color: Colors.white,
+              // Logo (mismo que MobilDesk POS escritorio)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 84,
+                    height: 84,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
