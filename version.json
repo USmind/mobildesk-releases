@@ -1,7 +1,7 @@
 {
-  "version": "2.0.19",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.19/Instalar-MobilDesk.exe",
-  "changelog": "Versión 2.0.19: Sincronización de licencia inmediata tras activar + botón Sincronizar Licencia en UI.",
+  "version": "2.0.20",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.20/Instalar-MobilDesk.exe",
+  "changelog": "Versión 2.0.20: Sincronización de licencia inmediata tras activar + botón Sincronizar Licencia en UI + corrección de aviso duplicado al sincronizar + logo unificado.",
   "mobile_version": "1.2.1",
   "mobile_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.16/mobildesk-movil.apk",
   "mobile_changelog": "Versión 1.2.1: Pagos mixtos / fraccionados en app móvil (5 métodos combinables) + correcciones."
