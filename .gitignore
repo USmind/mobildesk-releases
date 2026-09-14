@@ -1,47 +1,46 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-build_kiosko/
-package/
-dist/
-*.spec
-*.egg-info/
-
-# Flutter
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-build/
-*.lock
-.pub-cache/
-.pub/
-
-# Windows
-Thumbs.db
-Desktop.ini
-
-# Binaries / releases - use GitHub Releases instead
+# Binarios y builds
 compilados/
-release/
-outputs/Kit_Cliente*
-outputs/*.zip
+build/
+dist/
 *.exe
+*.msi
 *.apk
-!MobilDesk POS/assets/*.ico
+*.dmg
+*.deb
+*.rpm
+*.spec
+*.bat
+*.cmd
+*.zip
 
-# IDE
+# Entorno
+.env
+.env.*
+bot_telegram/config.json
+
+# Base de datos
+*.db
+*.sqlite
+
+# IDEs
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Temp
-*.tmp
-*.temp
+# PyInstaller
+*.manifest
+
+# Logs
+*.log
+logs/
+
+# Updates
+MobilDesk/updates/
+
+# Build caches
+MobilDesk POS/build_kiosko/
+MobilDesk POS/package/
+__pycache__/
