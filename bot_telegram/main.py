@@ -8,7 +8,6 @@ Incluye servidor HTTP integrado de salud para el plan gratuito de Render.
 =============================================================================
 """
 
-import os
 import sys
 import json
 import time
@@ -29,21 +28,16 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-# Clave secreta maestra del sistema MobilDesk POS
-MASTER_SECRET = b"KIOSKO_POS_PROTECTED_MASTER_SECRET_2026_V1"
-
-# Configuración (Soporta Variables de Entorno de Render y archivo local)
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8423198089:AAE88-5Er5Isjlu4_dGGnfsYboqRgv6613k").strip()
-PASSWORD_AUTORIZACION = os.environ.get("PASSWORD_AUTORIZACION", "mobiladmin2026").strip()
-ADMIN_USER_IDS = []
-
-# Cargar IDs guardados si existen
-env_admins = os.environ.get("ADMIN_USER_IDS", "")
-if env_admins:
-    try:
-        ADMIN_USER_IDS = [int(x.strip()) for x in env_admins.split(",") if x.strip().isdigit()]
-    except Exception:
-        pass
+# Cargar configuración centralizada
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from MobilDesk_POS.config import (
+    BOT_TOKEN,
+    PASSWORD_AUTORIZACION,
+    ADMIN_USER_IDS,
+    MASTER_SECRET,
+    LICENSE_SERVER_URL,
+)
 
 
 def generate_license_key(machine_id: str, plan: str, days: int = 365) -> str:

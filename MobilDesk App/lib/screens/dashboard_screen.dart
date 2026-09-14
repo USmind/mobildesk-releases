@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../theme/design_tokens.dart';
 import '../services/app_state.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/states.dart';
+import '../utils.dart';
 
 class DashboardScreen extends StatelessWidget {
   final AppState state;
@@ -24,62 +28,87 @@ class DashboardScreen extends StatelessWidget {
     final totalBsToday = salesToday.fold<double>(0, (sum, s) => sum + s.totalBs);
     final totalUsdToday = salesToday.fold<double>(0, (sum, s) => sum + s.totalUsd);
 
+    // Sync status colors
+    final isSynced = state.syncStatus.contains('Sincronizado');
+    final isError = state.syncStatus.contains('Error') ||
+        state.syncStatus.contains('vencida') ||
+        state.syncStatus.contains('Sin conexión');
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: DesignTokens.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF172554),
-        foregroundColor: Colors.white,
+        backgroundColor: DesignTokens.secondary,
+        foregroundColor: DesignTokens.textOnPrimary,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               state.businessName.toUpperCase(),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: DesignTokens.style('titleMedium').copyWith(fontWeight: FontWeight.bold, letterSpacing: 0.5, color: DesignTokens.textOnPrimary),
             ),
-            const Text(
+            Text(
               'Panel de Control',
-              style: TextStyle(fontSize: 12, color: Color(0xFF93C5FD)),
+              style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.primaryLight),
             ),
           ],
         ),
         actions: [
           IconButton(
+            tooltip: 'Actualizar tasa BCV',
+            icon: Icon(Icons.currency_exchange_rounded, color: DesignTokens.textOnPrimary),
+            onPressed: () async {
+              final oldRate = state.exchangeRate;
+              await state.fetchBcvRateAndUpdate();
+              if (context.mounted) {
+                final msg = state.exchangeRate != oldRate
+                    ? 'Tasa BCV actualizada: 1 USD = Bs ${state.exchangeRate.toStringAsFixed(2)}'
+                    : 'Tasa BCV sin cambios: 1 USD = Bs ${state.exchangeRate.toStringAsFixed(2)}';
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+              }
+            },
+          ),
+          IconButton(
             tooltip: 'Sincronizar',
             icon: state.isSyncing
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: DesignTokens.textOnPrimary),
                   )
-                : const Icon(Icons.sync_rounded),
+                : Icon(Icons.sync_rounded, color: DesignTokens.textOnPrimary),
             onPressed: state.isSyncing ? null : state.sync,
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: state.sync,
+        color: DesignTokens.primary,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: DesignTokens.paddingAll('lg'),
           children: [
             // Status Banner
             InkWell(
               onTap: state.isSyncing ? null : state.sync,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: DesignTokens.borderRadius('md'),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: DesignTokens.paddingSymmetric(h: 'md', v: 'sm'),
                 decoration: BoxDecoration(
                   color: state.syncStatus.contains('Sincronizado')
-                      ? const Color(0xFFECFDF5)
-                      : (state.syncStatus.contains('Error') || state.syncStatus.contains('vencida') || state.syncStatus.contains('Sin conexión'))
-                          ? const Color(0xFFFEF2F2)
-                          : const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
+                      ? DesignTokens.successContainer
+                      : (state.syncStatus.contains('Error') ||
+                              state.syncStatus.contains('vencida') ||
+                              state.syncStatus.contains('Sin conexión'))
+                          ? DesignTokens.errorContainer
+                          : DesignTokens.primaryContainer,
+                  borderRadius: DesignTokens.borderRadius('md'),
                   border: Border.all(
                     color: state.syncStatus.contains('Sincronizado')
-                        ? const Color(0xFFA7F3D0)
-                        : (state.syncStatus.contains('Error') || state.syncStatus.contains('vencida') || state.syncStatus.contains('Sin conexión'))
-                            ? const Color(0xFFFECACA)
-                            : const Color(0xFFBFDBFE),
+                        ? DesignTokens.successLight
+                        : (state.syncStatus.contains('Error') ||
+                                state.syncStatus.contains('vencida') ||
+                                state.syncStatus.contains('Sin conexión'))
+                            ? DesignTokens.errorLight
+                            : DesignTokens.primaryLight,
                   ),
                 ),
                 child: Row(
@@ -87,94 +116,117 @@ class DashboardScreen extends StatelessWidget {
                     Icon(
                       state.syncStatus.contains('Sincronizado')
                           ? Icons.cloud_done_rounded
-                          : (state.syncStatus.contains('Error') || state.syncStatus.contains('vencida') || state.syncStatus.contains('Sin conexión'))
+                          : (state.syncStatus.contains('Error') ||
+                                  state.syncStatus.contains('vencida') ||
+                                  state.syncStatus.contains('Sin conexión'))
                               ? Icons.cloud_off_rounded
                               : Icons.sync_rounded,
                       size: 20,
                       color: state.syncStatus.contains('Sincronizado')
-                          ? const Color(0xFF059669)
-                          : (state.syncStatus.contains('Error') || state.syncStatus.contains('vencida') || state.syncStatus.contains('Sin conexión'))
-                              ? const Color(0xFFDC2626)
-                              : const Color(0xFF2563EB),
+                          ? DesignTokens.success
+                          : (state.syncStatus.contains('Error') ||
+                                  state.syncStatus.contains('vencida') ||
+                                  state.syncStatus.contains('Sin conexión'))
+                              ? DesignTokens.error
+                              : DesignTokens.primary,
                     ),
-                    const SizedBox(width: 8),
+                    DesignTokens.spaceSm.width,
                     Expanded(
                       child: Text(
                         state.syncStatus,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        style: DesignTokens.style('labelLarge').copyWith(
                           color: state.syncStatus.contains('Sincronizado')
-                              ? const Color(0xFF065F46)
-                              : (state.syncStatus.contains('Error') || state.syncStatus.contains('vencida') || state.syncStatus.contains('Sin conexión'))
-                                  ? const Color(0xFF991B1B)
-                                  : const Color(0xFF1E40AF),
+                              ? DesignTokens.success
+                              : (state.syncStatus.contains('Error') ||
+                                      state.syncStatus.contains('vencida') ||
+                                      state.syncStatus.contains('Sin conexión'))
+                                  ? DesignTokens.error
+                                  : DesignTokens.primaryDark,
                         ),
                       ),
                     ),
                     if (state.outbox.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: DesignTokens.paddingSymmetric(h: 'sm', v: 'xs'),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B),
-                          borderRadius: BorderRadius.circular(10),
+                          color: DesignTokens.warningLight,
+                          borderRadius: DesignTokens.borderRadius('full'),
                         ),
                         child: Text(
                           '${state.outbox.length} pendientes',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: DesignTokens.style('labelSmall').copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            DesignTokens.spaceMd.height,
 
             // Tasa USD/Bs Banner
             Card(
               elevation: 0,
-              color: const Color(0xFF1E3A8A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              color: DesignTokens.primaryDark,
+              shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
               child: InkWell(
                 onTap: () => _showQuickRateDialog(context, state),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: DesignTokens.borderRadius('lg'),
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: DesignTokens.paddingAll('md'),
                   child: Row(
                     children: [
-                      const Icon(Icons.currency_exchange_rounded, color: Colors.white, size: 28),
-                      const SizedBox(width: 12),
+                      Icon(Icons.currency_exchange_rounded, color: DesignTokens.textOnPrimary, size: 28),
+                      DesignTokens.spaceMd.width,
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
                                 Text(
                                   'TASA OFICIAL USD / BS',
-                                  style: TextStyle(color: Color(0xFF93C5FD), fontSize: 11, fontWeight: FontWeight.bold),
+                                  style: DesignTokens.style('labelSmall').copyWith(
+                                    color: DesignTokens.primaryLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                SizedBox(width: 6),
-                                Icon(Icons.edit_rounded, color: Color(0xFF93C5FD), size: 12),
+                                DesignTokens.spaceXs.width,
+                                Icon(Icons.edit_rounded, color: DesignTokens.primaryLight, size: 12),
                               ],
                             ),
                             Text(
                               '1 USD = Bs ${currencyFormat.format(state.exchangeRate)}',
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              style: DesignTokens.style('headlineSmall').copyWith(
+                                color: DesignTokens.textOnPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            if (state.lastBcvUpdate != null && state.lastBcvUpdate!.isNotEmpty)
+                              Text(
+                                'BCV: ${state.lastBcvUpdate}',
+                                style: DesignTokens.style('labelSmall').copyWith(
+                                  color: DesignTokens.primaryLight,
+                                ),
+                              ),
                           ],
                         ),
                       ),
                       if (state.profitMargin > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: DesignTokens.paddingSymmetric(h: 'sm', v: 'xs'),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB),
-                            borderRadius: BorderRadius.circular(6),
+                            color: DesignTokens.primary,
+                            borderRadius: DesignTokens.borderRadius('sm'),
                           ),
                           child: Text(
                             '+${state.profitMargin.toStringAsFixed(0)}% ganancia',
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                            style: DesignTokens.style('labelSmall').copyWith(
+                              color: DesignTokens.textOnPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                     ],
@@ -182,7 +234,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            DesignTokens.spaceMd.height,
 
             // KPIs Grid
             Row(
@@ -192,128 +244,136 @@ class DashboardScreen extends StatelessWidget {
                     title: 'VENTAS HOY',
                     mainValue: 'Bs ${currencyFormat.format(totalBsToday)}',
                     subValue: '\$${currencyFormat.format(totalUsdToday)} (${salesToday.length} ventas)',
-                    color: const Color(0xFF0284C7),
+                    color: DesignTokens.primary,
                     icon: Icons.point_of_sale_rounded,
                   ),
                 ),
-                const SizedBox(width: 12),
+                DesignTokens.spaceMd.width,
                 Expanded(
                   child: _buildKpiCard(
                     title: 'PRODUCTOS',
                     mainValue: '${activeProducts.length}',
                     subValue: 'Catálogo Activo',
-                    color: const Color(0xFF16A34A),
+                    color: DesignTokens.success,
                     icon: Icons.inventory_2_rounded,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            DesignTokens.spaceLg.height,
 
             // Quick Action Shortcuts
-            const Text(
+            Text(
               'Acciones Rápidas',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: DesignTokens.style('titleMedium').copyWith(
+                fontWeight: FontWeight.bold,
+                color: DesignTokens.text,
+              ),
             ),
-            const SizedBox(height: 10),
+            DesignTokens.spaceMd.height,
             Row(
               children: [
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.add_shopping_cart_rounded,
                     label: 'Nueva Venta',
-                    color: const Color(0xFF2563EB),
-                    onTap: () => onNavigateTab(1), // Tab 1 is POS
+                    color: DesignTokens.primary,
+                    onTap: () => onNavigateTab(1),
                   ),
                 ),
-                const SizedBox(width: 10),
+                DesignTokens.spaceMd.width,
                 Expanded(
                   child: _buildActionButton(
                     icon: Icons.add_box_rounded,
                     label: 'Inventario',
-                    color: const Color(0xFF0F766E),
-                    onTap: () => onNavigateTab(3), // Tab 3 is Inventory
+                    color: DesignTokens.secondary,
+                    onTap: () => onNavigateTab(3),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            DesignTokens.spaceXl.height,
 
             // Recent sales list
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Últimas Ventas Registradas',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  style: DesignTokens.style('titleMedium').copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: DesignTokens.text,
+                  ),
                 ),
                 TextButton(
-                  onPressed: () => onNavigateTab(4), // Tab 4 is Sales History
-                  child: const Text('Ver todas'),
+                  onPressed: () => onNavigateTab(4),
+                  child: Text('Ver todas', style: DesignTokens.style('labelLarge').copyWith(color: DesignTokens.primary)),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            if (state.sales.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(24),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Text(
-                  'Aún no hay ventas registradas.\nPulsa en "Nueva Venta" para comenzar.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF64748B)),
-                ),
-              )
-            else
-              ...state.sales.reversed.take(5).map((sale) {
-                return Card(
-                  elevation: 0,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  color: Colors.white,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      child: Icon(
-                        sale.esFiada ? Icons.credit_card_off_rounded : Icons.receipt_long_rounded,
-                        color: sale.esFiada ? Colors.orange.shade700 : const Color(0xFF2563EB),
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      'Factura #${sale.numeroFactura}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      '${sale.metodoPago.toUpperCase()} · ${sale.fecha.split('T').first}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Bs ${currencyFormat.format(sale.totalBs)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+            DesignTokens.spaceMd.height,
+            state.sales.isEmpty
+                ? EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Sin ventas registradas',
+                    message: 'Pulsa en "Nueva Venta" para comenzar',
+                    actionLabel: 'Nueva Venta',
+                    onAction: () => onNavigateTab(1),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.sales.reversed.take(5).length,
+                    separatorBuilder: (_, __) => DesignTokens.spaceSm.height,
+                    itemBuilder: (ctx, i) {
+                      final salesList = state.sales.reversed.take(5).toList();
+                      final sale = salesList[i];
+                      return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: DesignTokens.borderRadius('lg'),
+                          side: BorderSide(color: DesignTokens.border),
                         ),
-                        Text(
-                          '\$${currencyFormat.format(sale.totalUsd)}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        color: DesignTokens.surface,
+                        child: ListTile(
+                          contentPadding: DesignTokens.paddingSymmetric(h: 'md', v: 'xs'),
+                          leading: CircleAvatar(
+                            backgroundColor: sale.esFiada ? DesignTokens.warningContainer : DesignTokens.primaryContainer,
+                            child: Icon(
+                              sale.esFiada ? Icons.credit_card_off_rounded : Icons.receipt_long_rounded,
+                              color: sale.esFiada ? DesignTokens.warning : DesignTokens.primary,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            'Factura #${sale.numeroFactura}',
+                            style: DesignTokens.style('bodyLarge').copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            '${sale.metodoPago.toUpperCase()} · ${sale.fecha.split('T').first}',
+                            style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Bs ${currencyFormat.format(sale.totalBs)}',
+                                style: DesignTokens.style('titleMedium').copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: DesignTokens.text,
+                                ),
+                              ),
+                              Text(
+                                '\$${currencyFormat.format(sale.totalUsd)}',
+                                style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              }),
           ],
         ),
       ),
@@ -328,18 +388,12 @@ class DashboardScreen extends StatelessWidget {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: DesignTokens.paddingAll('md'),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: DesignTokens.surface,
+        borderRadius: DesignTokens.borderRadius('lg'),
+        border: Border.all(color: DesignTokens.border),
+        boxShadow: DesignTokens.elevation1,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,23 +401,20 @@ class DashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
-              ),
+              Text(title, style: DesignTokens.style('labelSmall').copyWith(
+                fontWeight: FontWeight.bold,
+                color: DesignTokens.textMuted,
+              )),
               Icon(icon, size: 18, color: color),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            mainValue,
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subValue,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-          ),
+          DesignTokens.spaceMd.height,
+          Text(mainValue, style: DesignTokens.style('headlineSmall').copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          )),
+          DesignTokens.spaceXs.height,
+          Text(subValue, style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted)),
         ],
       ),
     );
@@ -377,21 +428,24 @@ class DashboardScreen extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: DesignTokens.borderRadius('md'),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        padding: DesignTokens.paddingSymmetric(v: 'md', h: 'lg'),
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: DesignTokens.borderRadius('md'),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
+            Icon(icon, color: DesignTokens.textOnPrimary, size: 20),
+            DesignTokens.spaceSm.width,
             Text(
               label,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              style: DesignTokens.style('labelLarge').copyWith(
+                color: DesignTokens.textOnPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -404,33 +458,33 @@ class DashboardScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
+        title: Row(
           children: [
-            Icon(Icons.currency_exchange_rounded, color: Color(0xFF2563EB)),
-            SizedBox(width: 10),
-            Text('Tasa Oficial USD / Bs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Icon(Icons.currency_exchange_rounded, color: DesignTokens.primary),
+            DesignTokens.spaceMd.width,
+            Text('Tasa Oficial USD / Bs', style: DesignTokens.style('titleLarge').copyWith(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Ingresa el nuevo valor del dólar en Bolívares. Se actualizará en la PC y en el teléfono al instante.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: DesignTokens.style('bodyMedium').copyWith(color: DesignTokens.textMuted),
             ),
-            const SizedBox(height: 16),
+            DesignTokens.spaceLg.height,
             TextField(
               controller: controller,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: DesignTokens.style('headlineSmall').copyWith(fontWeight: FontWeight.bold),
               decoration: InputDecoration(
                 labelText: 'Nueva Tasa (Bs / USD)',
                 hintText: 'Ej: 763.50',
-                prefixIcon: const Icon(Icons.attach_money_rounded),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                prefixIcon: Icon(Icons.attach_money_rounded, color: DesignTokens.primary),
+                border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
               ),
             ),
           ],
@@ -446,15 +500,10 @@ class DashboardScreen extends StatelessWidget {
               if (newRate != null && newRate > 0) {
                 state.setExchangeRate(newRate);
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('✅ Tasa cambiada a Bs ${newRate.toStringAsFixed(2)}. Sincronizando con PC...'),
-                    backgroundColor: const Color(0xFF16A34A),
-                  ),
-                );
+                showSuccessDialog(context, title: 'Actualizado', message: 'Tasa cambiada a Bs ${newRate.toStringAsFixed(2)}. Sincronizando con PC...');
               }
             },
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+            style: FilledButton.styleFrom(backgroundColor: DesignTokens.primary),
             child: const Text('Guardar y Sincronizar'),
           ),
         ],

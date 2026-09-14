@@ -3,6 +3,8 @@ class Product {
   final String codigoBarras;
   final String nombre;
   final String marca;
+  final String categoria;
+  final String proveedor;
   final String unidad;
   final double precioUsd;
   final double stockMinimo;
@@ -13,6 +15,8 @@ class Product {
     this.codigoBarras = '',
     required this.nombre,
     this.marca = '',
+    this.categoria = '',
+    this.proveedor = '',
     this.unidad = 'Unidad',
     required this.precioUsd,
     this.stockMinimo = 0,
@@ -24,6 +28,8 @@ class Product {
         'codigo_barras': codigoBarras,
         'nombre': nombre,
         'marca': marca,
+        'categoria': categoria,
+        'proveedor': proveedor,
         'unidad': unidad,
         'precio_usd': precioUsd,
         'stock_minimo': stockMinimo,
@@ -35,6 +41,8 @@ class Product {
         codigoBarras: map['codigo_barras']?.toString() ?? '',
         nombre: map['nombre']?.toString() ?? '',
         marca: map['marca']?.toString() ?? '',
+        categoria: map['categoria']?.toString() ?? '',
+        proveedor: map['proveedor']?.toString() ?? '',
         unidad: map['unidad']?.toString() ?? 'Unidad',
         precioUsd: double.tryParse(map['precio_usd']?.toString() ?? '0') ?? 0,
         stockMinimo: double.tryParse(map['stock_minimo']?.toString() ?? '0') ?? 0,

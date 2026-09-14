@@ -41,73 +41,25 @@ class CashWindow(QDialog):
         self.actualizar_vista()
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QWidget { font-family: 'Segoe UI', sans-serif; color: #0f172a; }
-            QLabel { color: #0f172a; border: none; background: transparent; }
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 16px;
-                font-weight: 700;
-                min-height: 22px;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-            QPushButton:disabled { background-color: #e2e8f0; color: #94a3b8; }
-            QMessageBox { background-color: #ffffff; }
-            QMessageBox QLabel { color: #0f172a; font-size: 14px; font-weight: 600; border: none; background: transparent; }
-            QMessageBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 28px;
-            }
-            QMessageBox QPushButton:hover { background-color: #1d4ed8; }
-            QLineEdit, QComboBox {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 7px;
-                padding: 7px 10px;
-                color: #0f172a;
-            }
-            QLineEdit:focus, QComboBox:focus { border: 2px solid #2563eb; }
-            QTableWidget {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-                gridline-color: #f1f5f9;
-            }
-            QHeaderView::section {
-                background-color: #f8fafc;
-                color: #0f172a;
-                font-weight: 700;
-                border: none;
-                border-bottom: 2px solid #cbd5e1;
-                padding: 8px;
-            }
-        """)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(14)
 
         header = QHBoxLayout()
+        head_box = QVBoxLayout()
+        head_box.setSpacing(2)
         title = QLabel("CONTROL DE CAJA")
-        title.setStyleSheet("font-size: 20px; font-weight: 800; color: #0f172a; border: none;")
-        header.addWidget(title)
+        title.setObjectName("pageTitle")
+        head_sub = QLabel("Abre el turno, registra movimientos y cierra con el arqueo del día.")
+        head_sub.setObjectName("pageSubtitle")
+        head_box.addWidget(title)
+        head_box.addWidget(head_sub)
+        header.addLayout(head_box)
         header.addStretch()
 
-        self.btn_refrescar = QPushButton("🔄 Actualizar")
-        self.btn_refrescar.setStyleSheet("""
-            QPushButton { background: #f8fafc; color: #334155; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 7px 16px; border-radius: 7px; }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        self.btn_refrescar = QPushButton("Actualizar")
+        self.btn_refrescar.setProperty("variant", "ghost")
+        self.btn_refrescar.setToolTip("Recargar el estado de la caja")
         self.btn_refrescar.clicked.connect(self.actualizar_vista)
         header.addWidget(self.btn_refrescar)
         layout.addLayout(header)
@@ -119,22 +71,25 @@ class CashWindow(QDialog):
         self.tab_actual = QWidget()
         tab_act_layout = QVBoxLayout(self.tab_actual)
         tab_act_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.scroll_actual = QScrollArea()
         self.scroll_actual.setWidgetResizable(True)
+        self.scroll_actual.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_actual.setFrameShape(QFrame.NoFrame)
         self.container_actual = QWidget()
         self.layout_actual = QVBoxLayout(self.container_actual)
-        self.layout_actual.setContentsMargins(10, 10, 10, 10)
+        self.layout_actual.setContentsMargins(0, 0, 0, 0)
         self.layout_actual.setSpacing(12)
         self.scroll_actual.setWidget(self.container_actual)
-        
+
         tab_act_layout.addWidget(self.scroll_actual)
         self.tabs.addTab(self.tab_actual, "Caja Actual / Turno")
 
         # Tab 2: Historial de Cierres
         self.tab_historial = QWidget()
         self.layout_historial = QVBoxLayout(self.tab_historial)
+        self.layout_historial.setContentsMargins(0, 0, 0, 0)
+        self.layout_historial.setSpacing(12)
         self.tabs.addTab(self.tab_historial, "Historial de Cierres")
 
         self.crear_vista_historial()
@@ -166,20 +121,13 @@ class CashWindow(QDialog):
 
     def mostrar_vista_apertura(self):
         frame = QFrame()
-        frame.setObjectName("panelCard")
-        frame.setStyleSheet("""
-            QFrame#panelCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 12px;
-            }
-        """)
+        frame.setObjectName("card")
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(14)
 
         icono = QLabel("CAJA CERRADA")
-        icono.setStyleSheet("font-size: 18px; font-weight: 700; color: #0f172a;")
+        icono.setObjectName("pageTitle")
         layout.addWidget(icono)
 
         desc = QLabel(
@@ -187,10 +135,13 @@ class CashWindow(QDialog):
             "Por favor, ingresa los montos iniciales de apertura para comenzar el turno."
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #475569; font-size: 14px;")
+        desc.setObjectName("pageSubtitle")
         layout.addWidget(desc)
 
         form = QFormLayout()
+        lbl_montos = QLabel("MONTOS INICIALES")
+        lbl_montos.setObjectName("sectionLabel")
+        form.addRow(lbl_montos)
         self.in_bs = QLineEdit("0.00")
         self.in_usd = QLineEdit("0.00")
         self.in_obs = QLineEdit()
@@ -201,19 +152,9 @@ class CashWindow(QDialog):
         form.addRow("Observaciones:", self.in_obs)
         layout.addLayout(form)
 
-        btn_abrir = QPushButton("🔓 Abrir Turno de Caja")
-        btn_abrir.setStyleSheet("""
-            QPushButton {
-                background: #16a34a;
-                color: white;
-                font-weight: 800;
-                padding: 12px;
-                font-size: 15px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background: #15803d; }
-        """)
+        btn_abrir = QPushButton("Abrir Turno de Caja")
+        btn_abrir.setProperty("variant", "success")
+        btn_abrir.setToolTip("Abrir un nuevo turno de caja")
         btn_abrir.clicked.connect(self.ejecutar_apertura)
         layout.addWidget(btn_abrir)
 
@@ -239,50 +180,27 @@ class CashWindow(QDialog):
 
         # Banner Superior
         banner = QFrame()
-        banner.setObjectName("turnoBanner")
-        banner.setStyleSheet("""
-            QFrame#turnoBanner {
-                background-color: #0f172a;
-                border-radius: 10px;
-            }
-            QFrame#turnoBanner QLabel { background: transparent; border: none; color: #ffffff; }
-        """)
+        banner.setObjectName("bannerDark")
         b_layout = QHBoxLayout(banner)
+        b_layout.setContentsMargins(18, 14, 18, 14)
+        b_layout.setSpacing(12)
         info_caja = QLabel(
             f"<b>TURNO ABIERTO # {caja['id']}</b> | Cajero: <b>{caja['usuario_nombre']}</b><br>"
             f"Apertura: {caja['fecha_apertura']}<br>"
             f"Fondo Inicial: Bs {float(caja['monto_inicial_bs']):,.2f} | USD ${float(caja['monto_inicial_usd']):,.2f}"
         )
-        info_caja.setStyleSheet("color: white; font-size: 13px; border: none; background: transparent;")
+        info_caja.setWordWrap(True)
         b_layout.addWidget(info_caja)
         b_layout.addStretch()
 
-        btn_mov = QPushButton("➕ Movimiento / Gasto")
-        btn_mov.setStyleSheet("""
-            QPushButton {
-                background: #0284c7;
-                color: white;
-                font-weight: 700;
-                padding: 9px 16px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background: #0369a1; }
-        """)
+        btn_mov = QPushButton("Movimiento / Gasto")
+        btn_mov.setProperty("variant", "soft")
+        btn_mov.setToolTip("Registrar una entrada o gasto del turno")
         btn_mov.clicked.connect(lambda: self.dialogo_movimiento(caja_id))
 
-        btn_cierre = QPushButton("🔒 Arqueo y Cierre de Caja")
-        btn_cierre.setStyleSheet("""
-            QPushButton {
-                background: #dc2626;
-                color: white;
-                font-weight: 800;
-                padding: 9px 18px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background: #b91c1c; }
-        """)
+        btn_cierre = QPushButton("Arqueo y Cierre de Caja")
+        btn_cierre.setProperty("variant", "danger")
+        btn_cierre.setToolTip("Contar el efectivo y cerrar el turno")
         btn_cierre.clicked.connect(lambda: self.dialogo_cierre(caja_id))
 
         b_layout.addWidget(btn_mov)
@@ -291,25 +209,22 @@ class CashWindow(QDialog):
 
         # Desglose en tarjetas
         grid = QHBoxLayout()
+        grid.setSpacing(12)
 
         # Tarjeta 1: Ventas por método
         card_ventas = QFrame()
-        card_ventas.setObjectName("resumenCard")
-        card_ventas.setStyleSheet("""
-            QFrame#resumenCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        card_ventas.setObjectName("card")
         cv_layout = QVBoxLayout(card_ventas)
-        cv_layout.setContentsMargins(14, 12, 14, 12)
-        cv_layout.addWidget(QLabel("<b>VENTAS DEL TURNO</b>"))
+        cv_layout.setContentsMargins(18, 18, 18, 18)
+        cv_layout.setSpacing(8)
+        lbl_ventas_titulo = QLabel("<b>VENTAS DEL TURNO</b>")
+        lbl_ventas_titulo.setObjectName("sectionLabel")
+        cv_layout.addWidget(lbl_ventas_titulo)
         cv_layout.addWidget(QLabel(f"Total Transacciones: <b>{summary['cantidad_ventas']}</b>"))
         cv_layout.addWidget(QLabel(f"Total Facturado: <b>Bs {summary['total_ventas_bs']:,.2f}</b> (${summary['total_ventas_usd']:,.2f})"))
         sep1 = QFrame()
         sep1.setFixedHeight(1)
-        sep1.setStyleSheet("background-color: #e2e8f0; border: none;")
+        sep1.setStyleSheet("background-color: #E4E7EC; border: none;")
         cv_layout.addWidget(sep1)
         cv_layout.addWidget(QLabel(f"• Efectivo Bs: Bs {v_metodo['efectivo']:,.2f}"))
         cv_layout.addWidget(QLabel(f"• Divisas USD: ${v_metodo['divisas_usd']:,.2f} (Bs {v_metodo['divisas_bs']:,.2f})"))
@@ -321,22 +236,18 @@ class CashWindow(QDialog):
 
         # Tarjeta 2: Efectivo y Saldo Esperado en Caja
         card_esperado = QFrame()
-        card_esperado.setObjectName("resumenCard")
-        card_esperado.setStyleSheet("""
-            QFrame#resumenCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        card_esperado.setObjectName("card")
         ce_layout = QVBoxLayout(card_esperado)
-        ce_layout.setContentsMargins(14, 12, 14, 12)
-        ce_layout.addWidget(QLabel("<b>EFECTIVO ESPERADO EN CAJA</b>"))
+        ce_layout.setContentsMargins(18, 18, 18, 18)
+        ce_layout.setSpacing(8)
+        lbl_esp_titulo = QLabel("<b>EFECTIVO ESPERADO EN CAJA</b>")
+        lbl_esp_titulo.setObjectName("sectionLabel")
+        ce_layout.addWidget(lbl_esp_titulo)
         ce_layout.addWidget(QLabel(f"Entradas adicionales: Bs {summary['entradas_bs']:,.2f} | ${summary['entradas_usd']:,.2f}"))
         ce_layout.addWidget(QLabel(f"Salidas / Gastos: Bs {summary['salidas_bs']:,.2f} | ${summary['salidas_usd']:,.2f}"))
         sep2 = QFrame()
         sep2.setFixedHeight(1)
-        sep2.setStyleSheet("background-color: #e2e8f0; border: none;")
+        sep2.setStyleSheet("background-color: #E4E7EC; border: none;")
         ce_layout.addWidget(sep2)
 
         lbl_esp_bs = QLabel(f"Esperado en Bs:<br><b style='font-size:18px;'>Bs {summary['esperado_bs']:,.2f}</b>")
@@ -349,7 +260,9 @@ class CashWindow(QDialog):
         self.layout_actual.addLayout(grid)
 
         # Tabla de Movimientos del turno
-        self.layout_actual.addWidget(QLabel("<b>Movimientos y Gastos del Turno Actual:</b>"))
+        lbl_mov_titulo = QLabel("<b>Movimientos y Gastos del Turno Actual:</b>")
+        lbl_mov_titulo.setObjectName("sectionLabel")
+        self.layout_actual.addWidget(lbl_mov_titulo)
         tabla_mov = QTableWidget()
         tabla_mov.verticalHeader().setVisible(False)
         tabla_mov.setColumnCount(5)
@@ -372,7 +285,13 @@ class CashWindow(QDialog):
         dialogo = QDialog(self)
         dialogo.setWindowTitle("Registrar Movimiento de Caja")
         dialogo.resize(420, 260)
+        dialogo.setMinimumSize(380, 240)
         layout = QVBoxLayout(dialogo)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(14)
+        lbl_sec = QLabel("DATOS DEL MOVIMIENTO")
+        lbl_sec.setObjectName("sectionLabel")
+        layout.addWidget(lbl_sec)
         form = QFormLayout()
 
         tipo = QComboBox()
@@ -396,6 +315,7 @@ class CashWindow(QDialog):
         layout.addLayout(form)
 
         btn_guardar = QPushButton("Guardar Movimiento")
+        btn_guardar.setToolTip("Guardar el movimiento en el turno actual")
         btn_guardar.clicked.connect(lambda: self.guardar_movimiento(dialogo, caja_id, tipo.currentData(), moneda.currentData(), monto.text(), motivo.text()))
         layout.addWidget(btn_guardar)
         dialogo.exec()
@@ -420,15 +340,22 @@ class CashWindow(QDialog):
         dialogo = QDialog(self)
         dialogo.setWindowTitle("Arqueo y Cierre de Caja")
         dialogo.resize(480, 420)
+        dialogo.setMinimumSize(420, 360)
         layout = QVBoxLayout(dialogo)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(14)
 
         info = QLabel(
             f"<h3>ARQUEO DE CAJA</h3>"
             f"<p><b>Esperado en Bolívares:</b> Bs {esp_bs:,.2f}<br>"
             f"<b>Esperado en Dólares:</b> USD ${esp_usd:,.2f}</p>"
-            f"<p style='color:#64748b;'>Ingresa el monto de dinero físico contado en la gaveta:</p>"
+            f"<p style='color:#6B7280;'>Ingresa el monto de dinero físico contado en la gaveta:</p>"
         )
         layout.addWidget(info)
+
+        lbl_conteo = QLabel("EFECTIVO CONTADO")
+        lbl_conteo.setObjectName("sectionLabel")
+        layout.addWidget(lbl_conteo)
 
         form = QFormLayout()
         in_real_bs = QLineEdit(f"{esp_bs:.2f}")
@@ -437,9 +364,9 @@ class CashWindow(QDialog):
         in_obs.setPlaceholderText("Observaciones o justificación de diferencias")
 
         lbl_dif_bs = QLabel("Diferencia Bs: 0.00")
+        lbl_dif_bs.setObjectName("money")
         lbl_dif_usd = QLabel("Diferencia USD: $0.00")
-        lbl_dif_bs.setStyleSheet("font-weight: bold;")
-        lbl_dif_usd.setStyleSheet("font-weight: bold;")
+        lbl_dif_usd.setObjectName("money")
 
         def recalcular():
             try:
@@ -448,8 +375,8 @@ class CashWindow(QDialog):
                 d_bs = r_bs - esp_bs
                 d_usd = r_usd - esp_usd
 
-                color_bs = "#16a34a" if d_bs >= 0 else "#dc2626"
-                color_usd = "#16a34a" if d_usd >= 0 else "#dc2626"
+                color_bs = "#16A34A" if d_bs >= 0 else "#DC2626"
+                color_usd = "#16A34A" if d_usd >= 0 else "#DC2626"
 
                 lbl_dif_bs.setText(f"Diferencia Bs: {'+' if d_bs > 0 else ''}{d_bs:,.2f} ({'Sobrante' if d_bs > 0 else 'Faltante' if d_bs < 0 else 'Exacto'})")
                 lbl_dif_bs.setStyleSheet(f"color: {color_bs}; font-weight: bold;")
@@ -471,7 +398,8 @@ class CashWindow(QDialog):
         layout.addLayout(form)
 
         btn_confirmar = QPushButton("Confirmar Cierre de Caja")
-        btn_confirmar.setStyleSheet("background: #dc2626; color: white; font-weight: 700; padding: 12px;")
+        btn_confirmar.setProperty("variant", "danger")
+        btn_confirmar.setToolTip("Cerrar el turno con los montos contados")
         btn_confirmar.clicked.connect(lambda: self.ejecutar_cierre(dialogo, caja_id, in_real_bs.text(), in_real_usd.text(), in_obs.text()))
         layout.addWidget(btn_confirmar)
         dialogo.exec()

@@ -1,7 +1,7 @@
 name: kiosko_movil
 description: "Punto de Venta y Gestión Móvil MobilDesk."
 publish_to: 'none'
-version: 1.2.1+10
+version: 1.2.6+15
 
 environment:
   sdk: ^3.13.0

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../theme/design_tokens.dart';
 import '../services/app_state.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -12,128 +11,40 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _rateController;
-  late TextEditingController _marginController;
-  late TextEditingController _businessIdController;
+  final _nameCtrl = TextEditingController();
+  final _rateCtrl = TextEditingController();
+  final _marginCtrl = TextEditingController();
+  final _bidCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.state.businessName);
-    _rateController = TextEditingController(text: widget.state.exchangeRate.toStringAsFixed(2));
-    _marginController = TextEditingController(text: widget.state.profitMargin.toStringAsFixed(0));
-    _businessIdController = TextEditingController(text: widget.state.businessId ?? '');
+    _nameCtrl.text = widget.state.businessName;
+    _rateCtrl.text = widget.state.exchangeRate.toStringAsFixed(2);
+    _marginCtrl.text = widget.state.profitMargin.toStringAsFixed(0);
+    _bidCtrl.text = widget.state.businessId ?? '';
   }
 
-  bool _checkingUpdate = false;
-
-  List<int> _parseVersion(String v) {
-    final clean = v.trim().toLowerCase().replaceAll(RegExp(r'^v'), '');
-    return clean.split('.').map((p) => int.tryParse(RegExp(r'\d+').firstMatch(p)?.group(0) ?? '0') ?? 0).toList();
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _rateCtrl.dispose();
+    _marginCtrl.dispose();
+    _bidCtrl.dispose();
+    super.dispose();
   }
 
-  bool _isNewer(String remote, String current) {
-    final r = _parseVersion(remote);
-    final c = _parseVersion(current);
-    for (int i = 0; i < r.length || i < c.length; i++) {
-      final rv = i < r.length ? r[i] : 0;
-      final cv = i < c.length ? c[i] : 0;
-      if (rv > cv) return true;
-      if (rv < cv) return false;
-    }
-    return false;
-  }
-
-  Future<void> _checkForUpdate() async {
-    if (_checkingUpdate) return;
-    setState(() => _checkingUpdate = true);
-    try {
-      final info = await PackageInfo.fromPlatform();
-      final current = info.version;
-      final data = await widget.state.checkAppUpdate();
-      if (data == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo conectar con el servidor de actualizaciones. Verifica tu conexión a Internet.')),
-        );
-        return;
-      }
-      final remote = (data['mobile_version'] ?? data['version'] ?? '').toString();
-      final url = (data['mobile_download_url'] ?? data['download_url'] ?? '').toString();
-      final changelog = (data['mobile_changelog'] ?? data['changelog'] ?? '').toString();
-      if (remote.isEmpty || !_isNewer(remote, current)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ya tienes la última versión ($current).')),
-        );
-        return;
-      }
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Actualización disponible: v$remote'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Versión instalada: $current', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
-                const SizedBox(height: 8),
-                Text(changelog.isNotEmpty ? changelog : 'Mejoras y correcciones.'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Más tarde')),
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                if (url.isNotEmpty) {
-                  try {
-                    final uri = Uri.parse(url);
-                    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    if (!ok && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No se pudo abrir el navegador. Copia el enlace manualmente.')),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No se pudo abrir el navegador. Verifica tu conexión e intenta de nuevo.')),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Descargar'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al verificar actualización: $e')));
-    } finally {
-      if (mounted) setState(() => _checkingUpdate = false);
-    }
-  }
-
-  void _saveSettings() {
-    final name = _nameController.text.trim();
-    final rate = double.tryParse(_rateController.text.replaceAll(',', '.')) ?? widget.state.exchangeRate;
-    final margin = double.tryParse(_marginController.text.replaceAll(',', '.')) ?? widget.state.profitMargin;
-    final bid = _businessIdController.text.trim();
-
+  void _save() {
+    final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('El nombre del negocio no puede estar vacío.')),
       );
       return;
     }
-
+    final rate = double.tryParse(_rateCtrl.text.replaceAll(',', '.')) ?? widget.state.exchangeRate;
+    final margin = double.tryParse(_marginCtrl.text.replaceAll(',', '.')) ?? widget.state.profitMargin;
+    final bid = _bidCtrl.text.trim();
     widget.state.updateSettings(
       name: name,
       rate: rate,
@@ -143,267 +54,186 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Configuración guardada correctamente.')),
     );
-    widget.state.sync();
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.state;
+    final accent = DesignTokens.primary;
+    final darkBg = DesignTokens.secondary;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: DesignTokens.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF172554),
+        backgroundColor: darkBg,
         foregroundColor: Colors.white,
-        title: const Text('Configuración y Cuenta', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Configuración y Cuenta',
+          style: DesignTokens.style('titleLarge').copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Store settings card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Datos del Comercio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del Negocio',
-                      prefixIcon: Icon(Icons.storefront_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _rateController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Tasa USD/Bs',
-                            prefixIcon: Icon(Icons.currency_exchange_rounded),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: _marginController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: '% Ganancia',
-                            prefixIcon: Icon(Icons.percent_rounded),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _saveSettings,
-                      icon: const Icon(Icons.save_rounded),
-                      label: const Text('Guardar Ajustes'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          _sectionTitle('Datos del Comercio', Icons.storefront_rounded),
+          const SizedBox(height: 12),
+          _field(_nameCtrl, 'Nombre del Negocio', Icons.storefront_rounded),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _field(_rateCtrl, 'Tasa USD/Bs', Icons.currency_exchange_rounded, isNum: true)),
+              const SizedBox(width: 12),
+              Expanded(child: _field(_marginCtrl, '% Ganancia', Icons.percent_rounded, isNum: true)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                final oldRate = s.exchangeRate;
+                try {
+                  await s.fetchBcvRateAndUpdate();
+                } catch (_) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sin conexión: no se pudo actualizar la tasa BCV.')),
+                    );
+                  }
+                  return;
+                }
+                if (mounted) {
+                  _rateCtrl.text = s.exchangeRate.toStringAsFixed(2);
+                  final msg = s.exchangeRate != oldRate
+                      ? 'Tasa BCV actualizada: 1 USD = Bs ${s.exchangeRate.toStringAsFixed(2)}'
+                      : 'Sin conexión o tasa BCV sin cambios: 1 USD = Bs ${s.exchangeRate.toStringAsFixed(2)}';
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                }
+              },
+              icon: const Icon(Icons.currency_exchange_rounded, size: 18),
+              label: const Text('Actualizar desde BCV'),
             ),
           ),
-          const SizedBox(height: 14),
+          if (s.lastBcvUpdate != null && s.lastBcvUpdate!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Última actualización BCV: ${s.lastBcvUpdate}',
+                style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.textMuted),
+              ),
+            ),
+          const SizedBox(height: 16),
+          _fullButton('Guardar Ajustes', Icons.save_rounded, accent, _save),
+          const SizedBox(height: 24),
 
-          // Sincronización
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Sincronización en la Nube', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                  const SizedBox(height: 8),
-                  Text('Cuenta: ${widget.state.email ?? "Desconectado"}', style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                  const SizedBox(height: 4),
-                  Text('Estado: ${widget.state.syncStatus}', style: const TextStyle(fontSize: 13, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _businessIdController,
-                    decoration: const InputDecoration(
-                      labelText: 'ID del Negocio (Supabase)',
-                      prefixIcon: Icon(Icons.vpn_key_outlined),
-                      border: OutlineInputBorder(),
-                      helperText: 'Debe coincidir con el Negocio ID del PC',
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: widget.state.isSyncing ? null : widget.state.sync,
-                          icon: widget.state.isSyncing
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.sync_rounded),
-                          label: Text(widget.state.isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _saveSettings,
-                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F766E)),
-                        child: const Text('Actualizar ID'),
-                      ),
-                    ],
-                  ),
-                ],
+          _sectionTitle('Sincronización en la Nube', Icons.cloud_rounded),
+          const SizedBox(height: 8),
+          Text('Cuenta: ${s.email ?? "Desconectado"}', style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.circle, size: 8, color: s.syncStatus.contains('Sincronizado') ? DesignTokens.success : DesignTokens.warning),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(s.syncStatus, style: DesignTokens.style('bodySmall').copyWith(fontWeight: FontWeight.bold)),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          _field(_bidCtrl, 'ID del Negocio (Supabase)', Icons.vpn_key_outlined),
+          Text('Debe coincidir con el Negocio ID del PC', style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.textMuted)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: s.isSyncing ? null : s.sync,
+                  icon: s.isSyncing
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.sync_rounded),
+                  label: Text(s.isSyncing ? 'Sincronizando...' : 'Sincronizar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _fullButton('Actualizar ID', Icons.check_rounded, DesignTokens.success, _save),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
 
-          // Licencia (sincronizada con el PC)
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(
-                color: widget.state.licenciaBloqueada ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+          _sectionTitle('Licencia', Icons.verified_rounded),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                s.licenciaBloqueada ? Icons.lock_rounded : Icons.verified_rounded,
+                size: 16,
+                color: s.licenciaBloqueada ? DesignTokens.error : DesignTokens.success,
               ),
-            ),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        widget.state.licenciaBloqueada ? Icons.lock_rounded : Icons.verified_rounded,
-                        color: widget.state.licenciaBloqueada ? const Color(0xFFDC2626) : const Color(0xFF059669),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Licencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Estado: ${widget.state.licenciaEstadoTexto}', style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tiempo restante: ${widget.state.licenciaRestanteTexto}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: widget.state.licenciaBloqueada ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Sincronizada con el programa de la PC: mismos días y horas restantes. Se activa desde el programa de la computadora.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
+              const SizedBox(width: 6),
+              Text(s.licenciaEstadoTexto, style: DesignTokens.style('bodyMedium')),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tiempo restante: ${s.licenciaRestanteTexto}',
+            style: DesignTokens.style('bodySmall').copyWith(
+              fontWeight: FontWeight.bold,
+              color: s.licenciaBloqueada ? DesignTokens.error : DesignTokens.success,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
+          Text('Sincronizada con el programa de la PC.', style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.textMuted)),
+          const SizedBox(height: 24),
 
-          // Actualizaciones
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Actualizar aplicación', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                  const SizedBox(height: 6),
-                  const Text('Verifica si hay una nueva versión con mejoras.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _checkingUpdate ? null : _checkForUpdate,
-                      icon: _checkingUpdate
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.system_update_rounded),
-                      label: Text(_checkingUpdate ? 'Verificando...' : 'Buscar actualizaciones'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _sectionTitle('Cerrar Sesión', Icons.logout_rounded),
+          const SizedBox(height: 8),
+          Text(
+            'Si deseas cambiar de cuenta o re-enlazar desde cero, pulsa cerrar sesión.',
+            style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
           ),
-          const SizedBox(height: 14),
-
-          // Logout
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: Color(0xFFFEE2E2)),
-            ),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Cerrar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Si deseas cambiar de cuenta o re-enlazar desde cero, pulsa cerrar sesión.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: widget.state.logout,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Cerrar Sesión'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
+          _fullButton('Cerrar Sesión', Icons.logout_rounded, DesignTokens.error, s.logout),
+          const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: DesignTokens.primary),
+        const SizedBox(width: 8),
+        Text(text, style: DesignTokens.style('titleMedium').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.text)),
+      ],
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label, IconData icon, {bool isNum = false}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : null,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+      ),
+    );
+  }
+
+  Widget _fullButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: FilledButton.styleFrom(backgroundColor: color),
       ),
     );
   }

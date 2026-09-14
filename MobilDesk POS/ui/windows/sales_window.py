@@ -67,105 +67,36 @@ class SalesWindow(QWidget):
     # INTERFAZ
     # ==================================================
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QWidget { font-family: 'Segoe UI', sans-serif; }
-            QLabel { color: #0f172a; font-weight: 600; border: none; background: transparent; font-size: 13.5px; }
-            QLineEdit {
-                background: white;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 7px 12px;
-                font-size: 13.5px;
-                color: #0f172a;
-            }
-            QLineEdit:focus { border: 2px solid #2563eb; }
-            QComboBox {
-                background: white;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 6px 12px;
-                font-size: 13.5px;
-                color: #0f172a;
-            }
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 16px;
-                font-weight: 700;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-            QPushButton:disabled { background-color: #e2e8f0; color: #94a3b8; }
-            QMessageBox { background-color: #ffffff; }
-            QMessageBox QLabel { color: #0f172a; font-size: 14px; font-weight: 600; border: none; background: transparent; }
-            QMessageBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 85px;
-                min-height: 28px;
-            }
-            QMessageBox QPushButton:hover { background-color: #1d4ed8; }
-            QDialogButtonBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 26px;
-            }
-            QDialogButtonBox QPushButton:hover { background-color: #1d4ed8; }
-            QComboBox:focus { border: 2px solid #2563eb; }
-            QTableWidget {
-                background: white;
-                border: 1px solid #cbd5e1;
-                border-radius: 10px;
-                gridline-color: #f1f5f9;
-                font-size: 13.5px;
-                color: #0f172a;
-            }
-            QTableWidget::item { padding: 6px; }
-            QTableWidget::item:selected { background: #dbeafe; color: #1e3a8a; }
-            QHeaderView::section {
-                background: #f8fafc;
-                color: #0f172a;
-                font-weight: 700;
-                font-size: 13px;
-                border: none;
-                border-bottom: 2px solid #e2e8f0;
-                padding: 10px 8px;
-            }
-        """)
-
+        # Estilo global proveniente de ui/theme.py (GLOBAL_QSS aplicado en app).
+        # Sin stylesheets locales: botones usan variant, etiquetas usan objectName.
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setContentsMargins(24, 18, 24, 18)
 
         # Header de Ventas
         header_vta = QHBoxLayout()
-        titulo = QLabel("🛒 PUNTO DE VENTA (FACTURACIÓN)")
-        titulo.setStyleSheet("font-size: 21px; font-weight: 800; color: #0f172a; border: none;")
-        header_vta.addWidget(titulo)
+        titulo_box = QVBoxLayout()
+        titulo_box.setSpacing(2)
+        titulo = QLabel("PUNTO DE VENTA (FACTURACIÓN)")
+        titulo.setObjectName("pageTitle")
+        subtitulo = QLabel("Busca productos, arma el carrito y registra la venta con vuelto exacto.")
+        subtitulo.setObjectName("pageSubtitle")
+        titulo_box.addWidget(titulo)
+        titulo_box.addWidget(subtitulo)
+        header_vta.addLayout(titulo_box)
         header_vta.addStretch()
 
         self.tasa_label = QLabel("Tasa: No configurada")
-        self.tasa_label.setStyleSheet("font-size: 14px; font-weight: 800; color: #1d4ed8; background: #eff6ff; padding: 6px 14px; border-radius: 8px; border: none;")
+        self.tasa_label.setObjectName("money")
         header_vta.addWidget(self.tasa_label)
         layout.addLayout(header_vta)
 
         # Barra de Selección de Producto
         formulario = QHBoxLayout()
-        formulario.setSpacing(8)
+        formulario.setSpacing(12)
 
-        lbl_prod = QLabel("Producto:")
+        lbl_prod = QLabel("PRODUCTO")
+        lbl_prod.setObjectName("sectionLabel")
         formulario.addWidget(lbl_prod)
 
         self.producto = QLineEdit()
@@ -174,29 +105,38 @@ class SalesWindow(QWidget):
         self.producto.setMinimumHeight(38)
         formulario.addWidget(self.producto)
 
-        lbl_cant = QLabel("Cantidad:")
+        lbl_cant = QLabel("CANTIDAD")
+        lbl_cant.setObjectName("sectionLabel")
         formulario.addWidget(lbl_cant)
+
+        self.btn_cant_menos = QPushButton("−")
+        self.btn_cant_menos.setProperty("variant", "ghost")
+        self.btn_cant_menos.setFixedWidth(46)
+        # Sin padding lateral: en botones angostos el padding global (20px
+        # por lado) no deja espacio y el texto sale vacío.
+        self.btn_cant_menos.setStyleSheet("padding-left: 0; padding-right: 0; font-size: 18px; font-weight: 800;")
+        self.btn_cant_menos.setToolTip("Quitar uno a la cantidad")
+        self.btn_cant_menos.clicked.connect(lambda: self._ajustar_cantidad(-1))
+        formulario.addWidget(self.btn_cant_menos)
 
         self.cantidad = QLineEdit()
         self.cantidad.setPlaceholderText("1")
         self.cantidad.setMaximumWidth(90)
         self.cantidad.setMinimumHeight(38)
+        self.cantidad.setToolTip("Cantidad a agregar (puedes escribirla o usar − / +)")
         formulario.addWidget(self.cantidad)
 
-        boton_agregar = QPushButton("➕ Agregar Producto")
+        self.btn_cant_mas = QPushButton("+")
+        self.btn_cant_mas.setProperty("variant", "ghost")
+        self.btn_cant_mas.setFixedWidth(46)
+        self.btn_cant_mas.setStyleSheet("padding-left: 0; padding-right: 0; font-size: 18px; font-weight: 800;")
+        self.btn_cant_mas.setToolTip("Agregar uno a la cantidad")
+        self.btn_cant_mas.clicked.connect(lambda: self._ajustar_cantidad(1))
+        formulario.addWidget(self.btn_cant_mas)
+
+        boton_agregar = QPushButton("Agregar Producto")
         boton_agregar.setMinimumHeight(38)
-        boton_agregar.setStyleSheet("""
-            QPushButton {
-                background: #2563eb;
-                color: white;
-                font-weight: 700;
-                font-size: 13.5px;
-                padding: 8px 18px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        boton_agregar.setToolTip("Agregar el producto buscado al carrito")
         boton_agregar.clicked.connect(self.agregar_producto)
         formulario.addWidget(boton_agregar)
 
@@ -225,15 +165,16 @@ class SalesWindow(QWidget):
 
         # Métodos de Pago y Datos del Cliente
         pago = QHBoxLayout()
-        pago.setSpacing(10)
-        lbl_met = QLabel("Método de Pago:")
+        pago.setSpacing(12)
+        lbl_met = QLabel("MÉTODO DE PAGO")
+        lbl_met.setObjectName("sectionLabel")
         self.metodo_pago = QComboBox()
         self.metodo_pago.addItem("Efectivo", "efectivo")
         self.metodo_pago.addItem("Tarjeta / Débito", "tarjeta")
         self.metodo_pago.addItem("Pago móvil", "pago_movil")
         self.metodo_pago.addItem("Divisas ($ USD)", "divisas")
         self.metodo_pago.addItem("Fiado / Crédito", "fiado")
-        self.metodo_pago.addItem("🔀 Pago Mixto / Fraccionado", "mixto")
+        self.metodo_pago.addItem("Pago Mixto / Fraccionado", "mixto")
         self.metodo_pago.setMinimumHeight(36)
 
         self.monto_recibido = QLineEdit()
@@ -242,22 +183,12 @@ class SalesWindow(QWidget):
         self.monto_recibido.setMinimumHeight(36)
 
         self.vuelto = QLabel("Vuelto: Bs 0.00")
-        self.vuelto.setStyleSheet("font-size: 15px; font-weight: 800; color: #15803d; background: #f0fdf4; padding: 6px 14px; border-radius: 8px; border: 1px solid #bbf7d0;")
+        self.vuelto.setObjectName("money")
+        self.vuelto.setWordWrap(True)
 
-        self.btn_config_mixto = QPushButton("⚙️ Configurar Desglose")
-        self.btn_config_mixto.setStyleSheet("""
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                font-weight: 700;
-                font-size: 13px;
-                padding: 6px 14px;
-                border-radius: 8px;
-                min-height: 24px;
-                border: none;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-        """)
+        self.btn_config_mixto = QPushButton("Configurar Desglose")
+        self.btn_config_mixto.setProperty("variant", "soft")
+        self.btn_config_mixto.setToolTip("Definir cuánto se paga en cada método")
         self.btn_config_mixto.setVisible(False)
         self.btn_config_mixto.clicked.connect(self.abrir_dialogo_pago_mixto)
 
@@ -273,8 +204,9 @@ class SalesWindow(QWidget):
         layout.addLayout(pago)
 
         cliente = QHBoxLayout()
-        cliente.setSpacing(8)
-        lbl_cli = QLabel("Cliente:")
+        cliente.setSpacing(12)
+        lbl_cli = QLabel("CLIENTE")
+        lbl_cli.setObjectName("sectionLabel")
         self.cliente_nombre, self.cliente_telefono = QLineEdit(), QLineEdit()
         self.cliente_direccion, self.cliente_cedula = QLineEdit(), QLineEdit()
         self.cliente_nombre.setPlaceholderText("Nombre (opcional / requerido en fiado)")
@@ -292,87 +224,45 @@ class SalesWindow(QWidget):
         cliente.addWidget(self.cliente_cedula)
         layout.addLayout(cliente)
 
+        # Aviso si el nombre escrito ya tiene deuda (se sumará a su cuenta).
+        self.cliente_id_actual = None
+        self.lbl_aviso_fiado = QLabel("")
+        self.lbl_aviso_fiado.setObjectName("pageSubtitle")
+        self.lbl_aviso_fiado.setWordWrap(True)
+        self.lbl_aviso_fiado.setVisible(False)
+        layout.addWidget(self.lbl_aviso_fiado)
+        self.cliente_nombre.textChanged.connect(self._on_cliente_nombre_cambiado)
+        self._actualizar_completer_clientes()
+
         # Fila de Totales y Botones de Acción
         resumen = QHBoxLayout()
-        resumen.setSpacing(8)
+        resumen.setSpacing(12)
 
         self.total_usd = QLabel("Total: Bs 0.00 ($0.00)")
-        self.total_usd.setStyleSheet("""
-            QLabel {
-                font-size: 16.5px;
-                font-weight: 800;
-                color: #0f172a;
-                background: #f8fafc;
-                padding: 6px 12px;
-                border-radius: 8px;
-                border: 1.5px solid #cbd5e1;
-            }
-        """)
+        self.total_usd.setObjectName("money")
+        self.total_usd.setWordWrap(True)
         self.total_usd.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
 
         resumen.addWidget(self.total_usd, 1)
 
-        boton_eliminar = QPushButton("🗑️ Eliminar")
+        boton_eliminar = QPushButton("Eliminar")
         boton_eliminar.setToolTip("Eliminar producto seleccionado")
-        boton_eliminar.setStyleSheet("""
-            QPushButton {
-                background: #fef2f2;
-                color: #dc2626;
-                border: 1.5px solid #fca5a5;
-                font-weight: 700;
-                font-size: 13px;
-                padding: 8px 12px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background: #fee2e2; }
-        """)
+        boton_eliminar.setProperty("variant", "danger")
         boton_eliminar.clicked.connect(self.eliminar_producto)
 
-        boton_vaciar = QPushButton("🧹 Cancelar")
+        boton_vaciar = QPushButton("Cancelar")
         boton_vaciar.setToolTip("Vaciar carrito y cancelar venta actual")
-        boton_vaciar.setStyleSheet("""
-            QPushButton {
-                background: #fff1f2;
-                color: #e11d48;
-                border: 1.5px solid #fecdd3;
-                font-weight: 700;
-                font-size: 13px;
-                padding: 8px 12px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background: #ffe4e6; }
-        """)
+        boton_vaciar.setProperty("variant", "ghost")
         boton_vaciar.clicked.connect(self.vaciar_carrito)
 
-        boton_historial = QPushButton("🧾 Historial")
+        boton_historial = QPushButton("Historial")
         boton_historial.setToolTip("Ver historial de facturas y ventas")
-        boton_historial.setStyleSheet("""
-            QPushButton {
-                background: #f8fafc;
-                color: #1e293b;
-                border: 1.5px solid #cbd5e1;
-                font-weight: 700;
-                font-size: 13px;
-                padding: 8px 12px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        boton_historial.setProperty("variant", "soft")
         boton_historial.clicked.connect(self.mostrar_historial)
 
-        boton_vender = QPushButton("✅ Registrar Venta")
-        boton_vender.setStyleSheet("""
-            QPushButton {
-                background: #16a34a;
-                color: white;
-                font-weight: 800;
-                font-size: 14px;
-                padding: 8px 18px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background: #15803d; }
-        """)
+        boton_vender = QPushButton("Registrar Venta")
+        boton_vender.setProperty("variant", "success")
+        boton_vender.setToolTip("Registrar la venta actual y generar el ticket")
         boton_vender.clicked.connect(self.registrar_venta)
 
         resumen.addWidget(boton_eliminar)
@@ -438,6 +328,17 @@ class SalesWindow(QWidget):
     # ==================================================
     # AGREGAR PRODUCTO
     # ==================================================
+
+    def _ajustar_cantidad(self, delta):
+        # Stepper táctil −/+: vacío se trata como 1, mínimo 1.
+        try:
+            actual = float((self.cantidad.text() or "1").strip().replace(",", "."))
+        except ValueError:
+            actual = 1.0
+        nuevo = actual + delta
+        if nuevo < 1:
+            nuevo = 1.0
+        self.cantidad.setText(str(int(nuevo)) if float(nuevo).is_integer() else str(round(nuevo, 2)))
 
     def agregar_producto(self):
         if not self.productos:
@@ -700,10 +601,99 @@ class SalesWindow(QWidget):
             self.cliente_telefono.clear()
             self.cliente_direccion.clear()
             self.cliente_cedula.clear()
+            self.cliente_id_actual = None
+            self.lbl_aviso_fiado.setVisible(False)
             self.monto_recibido.clear()
             self.datos_pago_mixto = None
             self.vuelto.setText("Vuelto: Bs 0.00")
             self.producto.setFocus()
+
+    # ==================================================
+    # CLIENTE FIADO: reutilizar deudor existente
+    # ==================================================
+
+    def set_cliente_para_fiado(self, cliente):
+        """Prefija el cliente para fiarle más (viene de Fiados)."""
+        try:
+            self.cliente_id_actual = int(cliente.get("id")) if cliente.get("id") else None
+        except Exception:
+            self.cliente_id_actual = None
+        # Bloquear señales para no borrar el id recién fijado.
+        try:
+            self.cliente_nombre.blockSignals(True)
+            self.cliente_nombre.setText(str(cliente.get("nombre") or ""))
+        finally:
+            self.cliente_nombre.blockSignals(False)
+        self.cliente_telefono.setText(str(cliente.get("telefono") or ""))
+        if cliente.get("direccion"):
+            self.cliente_direccion.setText(str(cliente.get("direccion") or ""))
+        if cliente.get("cedula"):
+            self.cliente_cedula.setText(str(cliente.get("cedula") or ""))
+        # Forzar método fiado.
+        for i in range(self.metodo_pago.count()):
+            if self.metodo_pago.itemData(i) == "fiado":
+                self.metodo_pago.setCurrentIndex(i)
+                break
+        self._on_cliente_nombre_cambiado(self.cliente_nombre.text())
+        self.producto.setFocus()
+
+    def _actualizar_completer_clientes(self):
+        try:
+            from modules.ventas.sales_service import search_clients
+            clientes = search_clients("", limit=50) or []
+            opciones = []
+            for c in clientes:
+                nombre = str(c.get("nombre") or "").strip()
+                if not nombre:
+                    continue
+                try:
+                    saldo = float(c.get("saldo_usd") or 0)
+                    nfac = int(c.get("num_facturas") or 0)
+                except Exception:
+                    saldo, nfac = 0, 0
+                if saldo > 0.001:
+                    opciones.append(f"{nombre} — debe ${saldo:,.2f} ({nfac} fac.)")
+                else:
+                    opciones.append(nombre)
+            modelo = QStringListModel(opciones, self)
+            comp = QCompleter(modelo, self)
+            comp.setCaseSensitivity(Qt.CaseInsensitive)
+            comp.setFilterMode(Qt.MatchContains)
+            self.cliente_nombre.setCompleter(comp)
+        except Exception:
+            pass
+
+    def _on_cliente_nombre_cambiado(self, texto):
+        # Si el usuario edita manualmente, el id prefijado ya no vale.
+        # (set_cliente_para_fiado bloquea señales para conservarlo.)
+        nombre = str(texto or "").strip()
+        if not nombre:
+            self.cliente_id_actual = None
+            self.lbl_aviso_fiado.setVisible(False)
+            return
+        try:
+            from modules.configuracion.exchange_rate_service import get_current_rate_value as _rate
+            from modules.ventas.sales_service import search_clients
+            cands = search_clients(nombre, limit=10) or []
+            norm = " ".join(nombre.lower().split())
+            match = None
+            for c in cands:
+                if " ".join(str(c.get("nombre") or "").strip().lower().split()) == norm:
+                    match = c
+                    break
+            if match and float(match.get("saldo_usd") or 0) > 0.001:
+                rate = _rate() or 0
+                saldo_bs = float(match.get("saldo_usd") or 0) * rate if rate else 0
+                nfac = int(match.get("num_facturas") or 0)
+                self.lbl_aviso_fiado.setText(
+                    f"⚠️ {match.get('nombre')} ya debe Bs {saldo_bs:,.2f} en {nfac} factura(s). "
+                    f"Lo nuevo se sumará a su misma cuenta (sin duplicarlo)."
+                )
+                self.lbl_aviso_fiado.setVisible(True)
+            else:
+                self.lbl_aviso_fiado.setVisible(False)
+        except Exception:
+            pass
 
     # ==================================================
     # TOTALES
@@ -737,7 +727,7 @@ class SalesWindow(QWidget):
         self.btn_config_mixto.setVisible(es_mixto)
         self.vuelto.setVisible(requiere_calculadora or es_mixto)
         if es_mixto:
-            self.vuelto.setText("🔀 Pago Mixto: Haga clic en 'Configurar Desglose' o 'Registrar Venta'")
+            self.vuelto.setText("Pago Mixto: Haga clic en 'Configurar Desglose' o 'Registrar Venta'")
             return
         if not requiere_calculadora:
             self.vuelto.setText("Vuelto: Bs 0.00")
@@ -859,7 +849,8 @@ class SalesWindow(QWidget):
                 else:
                     monto_recibido_usd = recibido
 
-            cliente = {"nombre": self.cliente_nombre.text(), "telefono": self.cliente_telefono.text(),
+            cliente = {"id": getattr(self, "cliente_id_actual", None),
+                       "nombre": self.cliente_nombre.text(), "telefono": self.cliente_telefono.text(),
                        "direccion": self.cliente_direccion.text(), "cedula": self.cliente_cedula.text()}
             resultado = create_sale(
                 self.usuario["id"], items,
@@ -892,15 +883,16 @@ class SalesWindow(QWidget):
                 + (f"\n• Vuelto en Divisas: USD ${resultado['vuelto_usd']:,.2f}" if (resultado.get('metodo_pago') == 'divisas' or (resultado.get('pagos_detalle') and resultado['pagos_detalle'].get('vuelto_usd', 0) > 0)) else "")
                 + "\n\n¿Deseas ver o imprimir el ticket de venta?"
             )
-            btn_imprimir = msg.addButton("🖨️ Ver / Imprimir Ticket", QMessageBox.YesRole)
-            btn_imprimir.setStyleSheet("background-color: #2563eb; color: white; font-weight: 700; padding: 8px 18px; border-radius: 7px; border: none;")
+            btn_imprimir = msg.addButton("Ver / Imprimir Ticket", QMessageBox.YesRole)
             btn_cerrar = msg.addButton("Continuar", QMessageBox.NoRole)
-            btn_cerrar.setStyleSheet("background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 8px 18px; border-radius: 7px;")
+            btn_cerrar.setProperty("variant", "ghost")
             msg.exec()
 
             self.tabla.setRowCount(0)
             self.monto_recibido.clear()
             self.cliente_nombre.clear(); self.cliente_telefono.clear(); self.cliente_direccion.clear(); self.cliente_cedula.clear()
+            self.cliente_id_actual = None
+            self.lbl_aviso_fiado.setVisible(False)
 
             self.actualizar_totales()
             self.cargar_productos()
@@ -950,6 +942,172 @@ class SalesWindow(QWidget):
             )
 
 
+class FacturaDetalleDialog(QDialog):
+    """Detalle completo de una factura: productos, cliente, pago y saldos."""
+
+    def __init__(self, venta_id, parent=None):
+        super().__init__(parent)
+        self.venta_id = venta_id
+        self.setWindowTitle("Detalle de Factura")
+        self.setWindowFlags(Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
+        self.resize(660, 600)
+        self.setMinimumSize(540, 460)
+        self._construir()
+
+    def _metodo_texto(self, raw):
+        raw = str(raw or "").strip().lower()
+        return {
+            "mixto": "Pago Mixto",
+            "pago_movil": "Pago Móvil",
+            "divisas": "Divisas ($ USD)",
+            "tarjeta": "Tarjeta / Débito",
+            "fiado": "Fiado / Crédito",
+            "efectivo": "Efectivo",
+        }.get(raw, raw.replace("_", " ").title() or "—")
+
+    def _construir(self):
+        import json as _json
+        from modules.ventas.ticket_service import get_sale_ticket_data
+        from modules.ventas.sales_service import get_sale_debt_info
+        try:
+            data = get_sale_ticket_data(int(self.venta_id))
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo cargar la factura:\n\n{e}")
+            self.reject()
+            return
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 18, 22, 18)
+        layout.setSpacing(10)
+
+        titulo = QLabel(f"Factura #{data.get('numero_factura')}")
+        titulo.setObjectName("pageTitle")
+        sub = QLabel(f"{str(data.get('fecha') or '')[:19]} · Cajero: {data.get('usuario_nombre') or 'Sistema'} · Estado: {str(data.get('estado') or 'completada').title()}")
+        sub.setObjectName("pageSubtitle")
+        sub.setWordWrap(True)
+        layout.addWidget(titulo)
+        layout.addWidget(sub)
+
+        if data.get("cliente_nombre"):
+            cli = QLabel(
+                f"<b>Cliente:</b> {data.get('cliente_nombre') or '—'}"
+                + (f" · CI/RIF: {data.get('cliente_cedula')}" if data.get("cliente_cedula") else "")
+                + (f" · Tel: {data.get('cliente_telefono')}" if data.get("cliente_telefono") else "")
+            )
+            cli.setWordWrap(True)
+            layout.addWidget(cli)
+
+        lbl_p = QLabel(f"PRODUCTOS ({len(data.get('items', []))})")
+        lbl_p.setObjectName("sectionLabel")
+        layout.addWidget(lbl_p)
+
+        tabla = QTableWidget()
+        tabla.verticalHeader().setVisible(False)
+        tabla.setColumnCount(5)
+        tabla.setHorizontalHeaderLabels(["Cant.", "Producto", "Precio USD", "Precio Bs", "Subtotal Bs"])
+        tabla.setEditTriggers(QTableWidget.NoEditTriggers)
+        tabla.setSelectionBehavior(QTableWidget.SelectRows)
+        tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        try:
+            tasa = float(data.get("tasa_utilizada") or 0)
+        except Exception:
+            tasa = 0
+        for it in data.get("items", []):
+            try:
+                cant = float(it.get("cantidad") or 0)
+            except Exception:
+                cant = 0
+            try:
+                p_usd = float(it.get("precio_usd") or 0)
+            except Exception:
+                p_usd = 0
+            p_bs = p_usd * tasa if tasa else 0
+            row = tabla.rowCount()
+            tabla.insertRow(row)
+            tabla.setItem(row, 0, QTableWidgetItem(f"{cant:g}"))
+            tabla.setItem(row, 1, QTableWidgetItem(f"{it.get('producto_codigo','')} - {it.get('producto_nombre','')}"))
+            tabla.setItem(row, 2, QTableWidgetItem(f"${p_usd:,.2f}"))
+            tabla.setItem(row, 3, QTableWidgetItem(f"Bs {p_bs:,.2f}"))
+            tabla.setItem(row, 4, QTableWidgetItem(f"Bs {cant * p_bs:,.2f}"))
+        layout.addWidget(tabla, 1)
+
+        try:
+            total_bs = float(data.get("total_bs") or 0)
+            total_usd = float(data.get("total_usd") or 0)
+        except Exception:
+            total_bs = total_usd = 0
+        info = (
+            f"<b>Total:</b> Bs {total_bs:,.2f} (${total_usd:,.2f}) · <b>Tasa:</b> Bs {tasa:,.2f}<br>"
+            f"<b>Método:</b> {self._metodo_texto(data.get('metodo_pago'))}"
+        )
+        if str(data.get("metodo_pago") or "") == "mixto" and data.get("pagos_detalle"):
+            try:
+                det = _json.loads(data["pagos_detalle"]) if isinstance(data["pagos_detalle"], str) else data["pagos_detalle"]
+            except Exception:
+                det = {}
+            partes = []
+            if det.get("divisas_usd"):
+                partes.append(f"Divisas ${float(det['divisas_usd']):,.2f}")
+            if det.get("efectivo_bs"):
+                partes.append(f"Efectivo Bs {float(det['efectivo_bs']):,.2f}")
+            if det.get("pago_movil_bs"):
+                partes.append(f"Pago Móvil Bs {float(det['pago_movil_bs']):,.2f}")
+            if det.get("tarjeta_bs"):
+                partes.append(f"Tarjeta Bs {float(det['tarjeta_bs']):,.2f}")
+            if det.get("fiado_bs"):
+                partes.append(f"Fiado Bs {float(det['fiado_bs']):,.2f}")
+            if partes:
+                info += "<br><i>" + " + ".join(partes) + "</i>"
+        elif str(data.get("metodo_pago") or "") == "efectivo":
+            try:
+                info += f" · Recibido Bs {float(data.get('monto_recibido_bs') or total_bs):,.2f} · Vuelto Bs {float(data.get('vuelto_bs') or 0):,.2f}"
+            except Exception:
+                pass
+        elif str(data.get("metodo_pago") or "") == "divisas":
+            try:
+                info += f" · Recibido ${float(data.get('monto_recibido_usd') or total_usd):,.2f} · Vuelto ${float(data.get('vuelto_usd') or 0):,.2f}"
+            except Exception:
+                pass
+        if data.get("es_fiada"):
+            try:
+                dinfo = get_sale_debt_info(int(self.venta_id))
+            except Exception:
+                dinfo = None
+            if dinfo:
+                try:
+                    s_usd = float(dinfo["deuda"].get("saldo_usd") or 0)
+                except Exception:
+                    s_usd = 0
+                s_bs = s_usd * tasa if tasa else 0
+                info += f"<br><b style='color:#b91c1c;'>Saldo pendiente: Bs {s_bs:,.2f} (${s_usd:,.2f}) — {len(dinfo['pagos'])} abono(s)</b>"
+                for p in dinfo["pagos"]:
+                    info += f"<br>• Abono Bs {float(p.get('monto_bs') or 0):,.2f} — {p.get('fecha','')}"
+        lbl_info = QLabel(info)
+        lbl_info.setWordWrap(True)
+        layout.addWidget(lbl_info)
+
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        btn_ticket = QPushButton("Ver / Imprimir Ticket")
+        btn_ticket.setProperty("variant", "soft")
+        btn_ticket.setToolTip("Abrir el ticket para imprimir")
+        btn_ticket.clicked.connect(self._abrir_ticket)
+        btn_box.addWidget(btn_ticket)
+        btn_cerrar = QPushButton("Cerrar")
+        btn_cerrar.setProperty("variant", "ghost")
+        btn_cerrar.clicked.connect(self.accept)
+        btn_box.addWidget(btn_cerrar)
+        layout.addLayout(btn_box)
+
+    def _abrir_ticket(self):
+        try:
+            dlg = TicketPreviewDialog(int(self.venta_id), self)
+            dlg.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error de Ticket", f"No se pudo abrir el ticket:\n\n{e}")
+
+
 class SalesHistoryWindow(QWidget):
     """Módulo integrado de Historial de Ventas para el panel principal de MobilDesk POS."""
 
@@ -964,24 +1122,31 @@ class SalesHistoryWindow(QWidget):
     def crear_interfaz(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 18, 24, 18)
 
         # Header
         h_layout = QHBoxLayout()
+        hist_title_box = QVBoxLayout()
+        hist_title_box.setSpacing(2)
         titulo = QLabel("Historial de Ventas")
-        titulo.setStyleSheet("font-size: 19px; font-weight: 800; color: #0f172a;")
-        h_layout.addWidget(titulo)
+        titulo.setObjectName("pageTitle")
+        hist_sub = QLabel("Consulta facturas emitidas y reimprime tickets cuando lo necesites.")
+        hist_sub.setObjectName("pageSubtitle")
+        hist_title_box.addWidget(titulo)
+        hist_title_box.addWidget(hist_sub)
+        h_layout.addLayout(hist_title_box)
         h_layout.addStretch()
 
-        btn_refrescar = QPushButton("🔄 Actualizar")
-        btn_refrescar.setStyleSheet("background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: bold; padding: 6px 14px; border-radius: 6px;")
+        btn_refrescar = QPushButton("Actualizar")
+        btn_refrescar.setProperty("variant", "ghost")
+        btn_refrescar.setToolTip("Recargar el historial de ventas")
         btn_refrescar.clicked.connect(self.cargar_historial)
         h_layout.addWidget(btn_refrescar)
         layout.addLayout(h_layout)
 
         # KPIs Summary
         kpi_layout = QHBoxLayout()
-        kpi_layout.setSpacing(10)
+        kpi_layout.setSpacing(12)
         self.card_count = self._crear_kpi_card("TOTAL FACTURAS", "0", "#2563eb")
         self.card_total_bs = self._crear_kpi_card("TOTAL VENTAS (BS)", "Bs 0,00", "#16a34a")
         self.card_total_usd = self._crear_kpi_card("TOTAL VENTAS (USD)", "$0,00", "#0284c7")
@@ -992,15 +1157,17 @@ class SalesHistoryWindow(QWidget):
 
         # Search and Filters
         search_layout = QHBoxLayout()
+        search_layout.setSpacing(12)
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Buscar por número de factura, cliente o cajero...")
+        self.search_input.setPlaceholderText("Buscar por número de factura, cliente o cajero...")
         self.search_input.textChanged.connect(self.filtrar_tabla)
         search_layout.addWidget(self.search_input)
 
         self.btn_todas = QPushButton("Todas")
+        self.btn_todas.setToolTip("Mostrar todas las facturas")
         self.btn_todas.clicked.connect(lambda: self._set_filtro("todas"))
         self.btn_hoy = QPushButton("Solo Hoy")
-        self.btn_hoy.clicked.connect(lambda: self._set_filtro("hoy"))
+        self.btn_hoy.setToolTip("Mostrar solo las ventas de hoy")
 
         search_layout.addWidget(self.btn_todas)
         search_layout.addWidget(self.btn_hoy)
@@ -1021,13 +1188,19 @@ class SalesHistoryWindow(QWidget):
         self.tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.tabla.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        self.tabla.doubleClicked.connect(self.ver_ticket)
+        self.tabla.doubleClicked.connect(self.ver_detalle)
         layout.addWidget(self.tabla)
 
         # Actions
         acciones = QHBoxLayout()
-        btn_ticket = QPushButton("🖨️ Ver / Imprimir Ticket")
-        btn_ticket.setStyleSheet("background: #2563eb; color: white; font-weight: bold; padding: 10px 18px; border-radius: 8px; border: none;")
+        acciones.setSpacing(12)
+        btn_detalle = QPushButton("Ver Detalle")
+        btn_detalle.setProperty("variant", "soft")
+        btn_detalle.setToolTip("Ver productos, cliente, pago y saldos de la factura seleccionada")
+        btn_detalle.clicked.connect(self.ver_detalle)
+        acciones.addWidget(btn_detalle)
+        btn_ticket = QPushButton("Ver / Imprimir Ticket")
+        btn_ticket.setToolTip("Ver o imprimir el ticket de la venta seleccionada")
         btn_ticket.clicked.connect(self.ver_ticket)
         acciones.addWidget(btn_ticket)
         acciones.addStretch()
@@ -1042,23 +1215,16 @@ class SalesHistoryWindow(QWidget):
         self.cargar_historial()
 
     def _crear_kpi_card(self, title, val, color=""):
-        """Tarjeta metrica neutral: fondo blanco plano, sin barras de color."""
+        """Tarjeta metrica neutral: usa QFrame#kpi del tema global."""
         frame = QFrame()
-        frame.setObjectName("kpiCard")
-        frame.setStyleSheet("""
-            QFrame#kpiCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        frame.setObjectName("kpi")
         vbox = QVBoxLayout(frame)
         vbox.setContentsMargins(14, 10, 14, 10)
         vbox.setSpacing(3)
         lbl_t = QLabel(title)
-        lbl_t.setStyleSheet("font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; border: none; background: transparent;")
+        lbl_t.setObjectName("kpiLabel")
         lbl_v = QLabel(val)
-        lbl_v.setStyleSheet("font-size: 18px; font-weight: 700; color: #0f172a; border: none; background: transparent;")
+        lbl_v.setObjectName("kpiValue")
         vbox.addWidget(lbl_t)
         vbox.addWidget(lbl_v)
         frame.val_label = lbl_v
@@ -1071,11 +1237,14 @@ class SalesHistoryWindow(QWidget):
 
     def _actualizar_estilo_filtros(self):
         if self.filtro_actual == "hoy":
-            self.btn_hoy.setStyleSheet("background: #2563eb; color: white; font-weight: 600; padding: 7px 16px; border-radius: 8px; border: none;")
-            self.btn_todas.setStyleSheet("background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-weight: 600; padding: 7px 16px; border-radius: 8px;")
+            self.btn_hoy.setProperty("variant", "")
+            self.btn_todas.setProperty("variant", "ghost")
         else:
-            self.btn_todas.setStyleSheet("background: #2563eb; color: white; font-weight: 600; padding: 7px 16px; border-radius: 8px; border: none;")
-            self.btn_hoy.setStyleSheet("background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-weight: 600; padding: 7px 16px; border-radius: 8px;")
+            self.btn_todas.setProperty("variant", "")
+            self.btn_hoy.setProperty("variant", "ghost")
+        for btn in (self.btn_hoy, self.btn_todas):
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
     def cargar_historial(self):
         try:
@@ -1103,7 +1272,7 @@ class SalesHistoryWindow(QWidget):
             raw_met = str(venta["metodo_pago"] if venta["metodo_pago"] is not None else "").strip().lower()
 
             if raw_met == "mixto":
-                metodo = "🔀 Pago Mixto"
+                metodo = "Pago Mixto"
             elif raw_met == "pago_movil":
                 metodo = "Pago Móvil"
             elif raw_met == "divisas":
@@ -1161,6 +1330,25 @@ class SalesHistoryWindow(QWidget):
         self.card_count.val_label.setText(str(count))
         self.card_total_bs.val_label.setText(f"Bs {tot_bs:,.2f}")
         self.card_total_usd.val_label.setText(f"${tot_usd:,.2f}")
+
+    def _venta_seleccionada(self):
+        row = self.tabla.currentRow()
+        if row < 0:
+            return None
+        item = self.tabla.item(row, 0)
+        if not item:
+            return None
+        return item.data(Qt.UserRole) or None
+
+    def ver_detalle(self):
+        venta_id = self._venta_seleccionada()
+        if not venta_id:
+            return QMessageBox.warning(self, "Detalle", "Selecciona una venta de la tabla.")
+        try:
+            dlg = FacturaDetalleDialog(int(venta_id), self)
+            dlg.exec()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo abrir el detalle de la factura:\n\n{e}")
 
     def ver_ticket(self):
         row = self.tabla.currentRow()

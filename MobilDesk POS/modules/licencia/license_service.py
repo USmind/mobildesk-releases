@@ -12,6 +12,79 @@ from modules.sync.sync_service import queue_event_with_connection
 
 DEMO_DAYS = 7
 
+# Tolerancia para atrasos legítimos del reloj (horario de verano, zona
+# horaria, pila del BIOS). Más de esto hacia atrás = manipulación.
+RELOJ_TOLERANCIA_HORAS = 12
+
+# Marcadores externos de fecha de instalación (anti-reinstalación: si
+# borran la base para reiniciar el demo, la fecha original sobrevive
+# fuera de ella y el demo NO se reinicia).
+_MARCADOR_REG_PATH = r"Software\MobilDeskPOS"
+_MARCADOR_REG_VALUE = "InstallDate"
+_MARCADOR_FILE = "MobilDesk/.syslock"
+
+
+def _marcador_archivo_path():
+    base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    return os.path.join(base, _MARCADOR_FILE)
+
+
+def _leer_marcador_instalacion():
+    """Fecha de instalación original guardada fuera de la base.
+
+    Retorna datetime o None. Nunca lanza excepciones.
+    """
+    candidatos = []
+    try:
+        with open(_marcador_archivo_path(), "r", encoding="utf-8") as f:
+            candidatos.append(datetime.fromisoformat(f.read().strip()))
+    except Exception:
+        pass
+    if platform.system() == "Windows":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _MARCADOR_REG_PATH) as key:
+                valor, _ = winreg.QueryValueEx(key, _MARCADOR_REG_VALUE)
+                candidatos.append(datetime.fromisoformat(str(valor).strip()))
+        except Exception:
+            pass
+    validos = [d for d in candidatos if isinstance(d, datetime)]
+    return min(validos) if validos else None
+
+
+def _guardar_marcador_instalacion(fecha_iso):
+    """Conserva la fecha de instalación MÁS ANTIGUA (nunca la adelanta)."""
+    try:
+        ruta = _marcador_archivo_path()
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        previo = None
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                previo = datetime.fromisoformat(f.read().strip())
+        except Exception:
+            previo = None
+        actual = datetime.fromisoformat(fecha_iso)
+        if previo is None or actual < previo:
+            with open(ruta, "w", encoding="utf-8") as f:
+                f.write(fecha_iso)
+    except Exception:
+        pass
+    if platform.system() == "Windows":
+        try:
+            import winreg
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _MARCADOR_REG_PATH) as key:
+                    valor, _ = winreg.QueryValueEx(key, _MARCADOR_REG_VALUE)
+                    previo = datetime.fromisoformat(str(valor).strip())
+            except Exception:
+                previo = None
+            actual = datetime.fromisoformat(fecha_iso)
+            if previo is None or actual < previo:
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, _MARCADOR_REG_PATH) as key:
+                    winreg.SetValueEx(key, _MARCADOR_REG_VALUE, 0, winreg.REG_SZ, fecha_iso)
+        except Exception:
+            pass
+
 
 def _publicar_licencia_nube(conn, estado, plan, fecha_expiracion_iso):
     """Publica el estado de la licencia en la nube para que la app movil
@@ -223,32 +296,65 @@ def init_or_get_license_info() -> dict:
         row = cursor.fetchone()
 
         if not row:
-            # Primera instalación: iniciar Demo de 7 días
-            demo_expiry = today + timedelta(days=DEMO_DAYS)
+            # Primera instalación: iniciar Demo de 7 días.
+            # Si existen marcadores externos (reinstalación tras borrar la
+            # base), se respeta la fecha ORIGINAL: el demo no se reinicia.
+            marcador = _leer_marcador_instalacion()
+            install_dt = marcador if marcador is not None else today
+            _guardar_marcador_instalacion(install_dt.isoformat())
+            demo_expiry = install_dt + timedelta(days=DEMO_DAYS)
             cursor.execute(
                 """
                 INSERT INTO system_license (
                     id, machine_id, fecha_instalacion, plan_activo,
-                    clave_activacion, fecha_activacion, fecha_expiracion, ultima_verificacion
-                ) VALUES (1, ?, ?, 'demo', NULL, NULL, ?, ?)
+                    clave_activacion, fecha_activacion, fecha_expiracion, ultima_verificacion,
+                    ultima_apertura
+                ) VALUES (1, ?, ?, 'demo', NULL, NULL, ?, ?, ?)
                 """,
-                (machine_id, now_str, demo_expiry.isoformat(), now_str)
+                (machine_id, install_dt.isoformat(), demo_expiry.isoformat(), now_str, now_str)
             )
             _publicar_licencia_nube(conn, "demo", "demo", demo_expiry.isoformat())
             conn.commit()
+            bloqueado = today > demo_expiry
             return {
-                "estado": "demo",
-                "plan_nombre": "Prueba Gratuita (Demo)",
-                "dias_restantes": DEMO_DAYS,
+                "estado": "demo" if not bloqueado else "expirado",
+                "plan_nombre": "Prueba Gratuita (Demo)" if not bloqueado else "Prueba Gratuita Expirada",
+                "dias_restantes": max(0, (demo_expiry - today).days) if not bloqueado else 0,
                 "fecha_expiracion": demo_expiry.strftime("%d/%m/%Y"),
                 "machine_id": machine_id,
-                "bloqueado": False
+                "bloqueado": bloqueado
             }
 
         # Ya existe registro
         plan_activo = row["plan_activo"]
         fecha_exp_str = row["fecha_expiracion"]
         clave = row["clave_activacion"]
+
+        # Antifraude: reloj atrasado más allá de la tolerancia.
+        # No se persiste nada: al corregir la fecha todo vuelve a la normalidad,
+        # pero mientras el reloj esté atrás no se puede usar (no hay beneficio).
+        if plan_activo != "vitalicio":
+            try:
+                ultima_ap = datetime.fromisoformat(row["ultima_apertura"]) if row["ultima_apertura"] else None
+            except Exception:
+                ultima_ap = None
+            if ultima_ap is not None:
+                atraso_horas = (ultima_ap - today).total_seconds() / 3600.0
+                if atraso_horas > RELOJ_TOLERANCIA_HORAS:
+                    return {
+                        "estado": "reloj_invalido",
+                        "plan_nombre": "Fecha del Sistema Inválida",
+                        "dias_restantes": 0,
+                        "fecha_expiracion": "-",
+                        "machine_id": machine_id,
+                        "bloqueado": True,
+                        "motivo": "reloj"
+                    }
+            try:
+                cursor.execute("UPDATE system_license SET ultima_apertura = ? WHERE id = 1", (now_str,))
+                conn.commit()
+            except Exception:
+                pass
 
         if plan_activo == "vitalicio":
             return {

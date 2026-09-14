@@ -1,0 +1,7 @@
+{
+    "BOT_TOKEN": "TU_BOT_TOKEN_AQUI",
+    "ADMIN_USER_IDS": [
+        123456789
+    ],
+    "PASSWORD_AUTORIZACION": "tu_password_aqui"
+}

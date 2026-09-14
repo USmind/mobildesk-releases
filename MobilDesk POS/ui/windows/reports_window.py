@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from PySide6.QtCore import Qt, QDate
+from PySide6.QtGui import QTextCharFormat, QColor, QFont
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QComboBox,
     QDateEdit,
+    QCalendarWidget,
     QHeaderView,
     QFrame,
     QTabWidget,
@@ -38,76 +40,31 @@ class ReportsWindow(QDialog):
         self.establecer_periodo("hoy")
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QWidget { font-family: 'Segoe UI', sans-serif; color: #0f172a; }
-            QLabel { color: #0f172a; border: none; background: transparent; }
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 16px;
-                font-weight: 700;
-                min-height: 22px;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-            QPushButton:disabled { background-color: #e2e8f0; color: #94a3b8; }
-            QMessageBox { background-color: #ffffff; }
-            QMessageBox QLabel { color: #0f172a; font-size: 14px; font-weight: 600; border: none; background: transparent; }
-            QMessageBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 28px;
-            }
-            QMessageBox QPushButton:hover { background-color: #1d4ed8; }
-            QLineEdit, QComboBox, QDateEdit {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 7px;
-                padding: 7px 10px;
-                color: #0f172a;
-            }
-            QLineEdit:focus, QComboBox:focus, QDateEdit:focus { border: 2px solid #2563eb; }
-            QTableWidget {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-                gridline-color: #f1f5f9;
-            }
-            QHeaderView::section {
-                background-color: #f8fafc;
-                color: #0f172a;
-                font-weight: 700;
-                border: none;
-                border-bottom: 2px solid #cbd5e1;
-                padding: 8px;
-            }
-        """)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(14)
+
+        # Header
+        head_box = QVBoxLayout()
+        head_box.setSpacing(2)
+        title = QLabel("REPORTES Y ESTADÍSTICAS")
+        title.setObjectName("pageTitle")
+        sub = QLabel("Filtra por período y analiza ventas, métodos de pago y stock.")
+        sub.setObjectName("pageSubtitle")
+        head_box.addWidget(title)
+        head_box.addWidget(sub)
+        layout.addLayout(head_box)
 
         # Header con filtros de fecha
         filtros_frame = QFrame()
-        filtros_frame.setObjectName("filtrosCard")
-        filtros_frame.setStyleSheet("""
-            QFrame#filtrosCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        filtros_frame.setObjectName("card")
         f_layout = QHBoxLayout(filtros_frame)
+        f_layout.setContentsMargins(16, 12, 16, 12)
         f_layout.setSpacing(10)
 
-        f_layout.addWidget(QLabel("<b>Período:</b>"))
+        lbl_periodo = QLabel("PERÍODO")
+        lbl_periodo.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_periodo)
         self.combo_periodo = QComboBox()
         self.combo_periodo.addItem("Hoy", "hoy")
         self.combo_periodo.addItem("Ayer", "ayer")
@@ -117,45 +74,32 @@ class ReportsWindow(QDialog):
         self.combo_periodo.currentIndexChanged.connect(self.al_cambiar_combo_periodo)
         f_layout.addWidget(self.combo_periodo)
 
-        f_layout.addWidget(QLabel("Desde:"))
+        lbl_desde = QLabel("DESDE")
+        lbl_desde.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_desde)
         self.date_desde = QDateEdit(QDate.currentDate())
         self.date_desde.setCalendarPopup(True)
         f_layout.addWidget(self.date_desde)
 
-        f_layout.addWidget(QLabel("Hasta:"))
+        lbl_hasta = QLabel("HASTA")
+        lbl_hasta.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_hasta)
         self.date_hasta = QDateEdit(QDate.currentDate())
         self.date_hasta.setCalendarPopup(True)
         f_layout.addWidget(self.date_hasta)
 
-        btn_filtrar = QPushButton("🔍 Filtrar")
-        btn_filtrar.setStyleSheet("""
-            QPushButton {
-                background: #2563eb;
-                color: white;
-                font-weight: 700;
-                padding: 7px 16px;
-                border-radius: 6px;
-                border: none;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        self._estilizar_calendarios()
+
+        btn_filtrar = QPushButton("Filtrar")
+        btn_filtrar.setToolTip("Aplicar el filtro de fechas")
         btn_filtrar.clicked.connect(self.cargar_reporte)
         f_layout.addWidget(btn_filtrar)
 
         f_layout.addStretch()
 
-        btn_exportar = QPushButton("📥 Exportar CSV / Excel")
-        btn_exportar.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                color: #334155;
-                border: 1px solid #e2e8f0;
-                font-weight: 600;
-                padding: 7px 16px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_exportar = QPushButton("Exportar CSV / Excel")
+        btn_exportar.setProperty("variant", "ghost")
+        btn_exportar.setToolTip("Guardar el reporte en un archivo CSV")
         btn_exportar.clicked.connect(self.exportar_csv)
         f_layout.addWidget(btn_exportar)
 
@@ -165,9 +109,9 @@ class ReportsWindow(QDialog):
         kpi_layout = QHBoxLayout()
         kpi_layout.setSpacing(10)
 
-        self.kpi_ventas = self.crear_kpi_card("TOTAL VENTAS", "Bs 0.00", "$0.00", "#1e3a8a")
+        self.kpi_ventas = self.crear_kpi_card("TOTAL VENTAS", "Bs 0.00", "$0.00", "#2563EB")
         self.kpi_ganancia = self.crear_kpi_card("GANANCIA BRUTA EST.", "$0.00", "Margen positivo", "#15803d")
-        self.kpi_transacciones = self.crear_kpi_card("TRANSACCIONES", "0 ventas", "Prom: Bs 0.00", "#475569")
+        self.kpi_transacciones = self.crear_kpi_card("TRANSACCIONES", "0 ventas", "Prom: Bs 0.00", "#6B7280")
         self.kpi_deudas = self.crear_kpi_card("FIADOS PENDIENTES", "Bs 0.00", "Cuentas por cobrar", "#b45309")
 
         kpi_layout.addWidget(self.kpi_ventas)
@@ -233,24 +177,20 @@ class ReportsWindow(QDialog):
     def crear_kpi_card(self, titulo, valor1, valor2, color=""):
         """Tarjeta metrica neutral: sin barras de color ni marcos internos."""
         frame = QFrame()
-        frame.setObjectName("kpiCard")
-        frame.setStyleSheet("""
-            QFrame#kpiCard {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        frame.setObjectName("kpi")
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(3)
 
         t_lbl = QLabel(titulo)
-        t_lbl.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; border: none; background: transparent;")
+        t_lbl.setObjectName("kpiLabel")
+        t_lbl.setWordWrap(True)
         v1_lbl = QLabel(valor1)
-        v1_lbl.setStyleSheet("color: #0f172a; font-size: 18px; font-weight: 700; border: none; background: transparent;")
+        v1_lbl.setObjectName("kpiValue")
+        v1_lbl.setWordWrap(True)
         v2_lbl = QLabel(valor2)
-        v2_lbl.setStyleSheet("color: #64748b; font-size: 12px; border: none; background: transparent;")
+        v2_lbl.setObjectName("pageSubtitle")
+        v2_lbl.setWordWrap(True)
 
         layout.addWidget(t_lbl)
         layout.addWidget(v1_lbl)
@@ -258,6 +198,22 @@ class ReportsWindow(QDialog):
         frame.v1_lbl = v1_lbl
         frame.v2_lbl = v2_lbl
         return frame
+
+    def _estilizar_calendarios(self):
+        # Diseño propio del calendario: sábado azul, domingo rojo.
+        # Sin negrita: en negrita los nombres no caben y Qt los recorta ("d...").
+        fmt_sat = QTextCharFormat()
+        fmt_sat.setForeground(QColor("#2563EB"))
+        fmt_sun = QTextCharFormat()
+        fmt_sun.setForeground(QColor("#DC2626"))
+        fmt_today = QTextCharFormat()
+        fmt_today.setFontWeight(QFont.Black)
+        for cal in (self.date_desde.calendarWidget(), self.date_hasta.calendarWidget()):
+            # Letras únicas (D L M X J V S): imposible recortarlas y se ve moderno.
+            cal.setHorizontalHeaderFormat(QCalendarWidget.SingleLetterDayNames)
+            cal.setWeekdayTextFormat(Qt.Saturday, fmt_sat)
+            cal.setWeekdayTextFormat(Qt.Sunday, fmt_sun)
+            cal.setDateTextFormat(QDate.currentDate(), fmt_today)
 
     def al_cambiar_combo_periodo(self):
         periodo = self.combo_periodo.currentData()

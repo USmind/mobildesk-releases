@@ -1,0 +1,63 @@
+# ============================================================
+# MOBILDESK POS - .gitignore
+# ============================================================
+
+# Entorno virtual y dependencias
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# Variables de entorno y secretos
+.env
+.env.local
+.env.*.local
+bot_telegram/config.json
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+mobildesk_backup_*.db
+
+# Builds e instaladores
+compilados/
+release/
+build/
+dist/
+*.exe
+*.msi
+*.apk
+*.dmg
+*.deb
+*.rpm
+*.spec
+*.bat
+*.cmd
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Updates
+MobilDesk/updates/
+*.zip
+
+# PyInstaller
+*.manifest
+*.spec

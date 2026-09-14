@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../theme/design_tokens.dart';
+import '../utils.dart';
 
 class ScannerScreen extends StatefulWidget {
   final bool allowMultiScan;
@@ -57,8 +59,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
       } else {
         final now = DateTime.now();
         final last = _lastScannedTime[code];
-        if (last != null && now.difference(last).inMilliseconds < 1500) {
-          continue; // Cooldown de 1.5s para el mismo código exacto
+        if (last != null && now.difference(last).inMilliseconds < 600) {
+          // Cooldown de 600ms para el mismo código exacto, con feedback.
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  duration: const Duration(milliseconds: 500),
+                  content: Text('Ya registrado: $code (espera un momento…)'),
+                ),
+              );
+          }
+          HapticFeedback.lightImpact();
+          continue;
         }
         _lastScannedTime[code] = now;
         HapticFeedback.mediumImpact();
@@ -76,6 +90,29 @@ class _ScannerScreenState extends State<ScannerScreen> {
     if (mounted) {
       Navigator.pop(context, _scannedCodes);
     }
+  }
+
+  Map<String, int> get _groupedCounts {
+    final map = <String, int>{};
+    for (final c in _scannedCodes) {
+      map[c] = (map[c] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  void _removeOneCode(String code) {
+    setState(() {
+      final idx = _scannedCodes.lastIndexOf(code);
+      if (idx >= 0) _scannedCodes.removeAt(idx);
+      if (_scannedCodes.isEmpty) _lastCode = null;
+    });
+  }
+
+  void _removeAllOfCode(String code) {
+    setState(() {
+      _scannedCodes.removeWhere((c) => c == code);
+      if (_scannedCodes.isEmpty) _lastCode = null;
+    });
   }
 
   Widget _errorBuilder(BuildContext context, MobileScannerException error) {
@@ -109,24 +146,24 @@ class _ScannerScreenState extends State<ScannerScreen> {
       color: Colors.black,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: DesignTokens.paddingAll('xl'),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: Colors.white, size: 48),
-              const SizedBox(height: 16),
+              DesignTokens.spaceLg.height,
               Text(
                 title,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: DesignTokens.style('titleLarge').copyWith(color: Colors.white),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
               Text(
                 message,
-                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
+                style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.primaryLight),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
+              DesignTokens.spaceLg.height,
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -135,13 +172,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white24)),
                     child: const Text('Cerrar'),
                   ),
-                  const SizedBox(width: 12),
+                  DesignTokens.spaceMd.width,
                   FilledButton(
                     onPressed: () {
                       setState(() => _handled = false);
                       _controller.start();
                     },
-                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+                    style: FilledButton.styleFrom(backgroundColor: DesignTokens.primary),
                     child: const Text('Reintentar'),
                   ),
                 ],
@@ -158,15 +195,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: DesignTokens.secondaryDark,
         foregroundColor: Colors.white,
-        title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(widget.title, style: DesignTokens.style('titleLarge').copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             tooltip: _isMultiScan ? 'Modo Múltiple Activo' : 'Modo Individual',
             icon: Icon(
               _isMultiScan ? Icons.filter_none_rounded : Icons.crop_portrait_rounded,
-              color: _isMultiScan ? const Color(0xFF38BDF8) : Colors.white70,
+              color: _isMultiScan ? DesignTokens.primary : Colors.white70,
             ),
             onPressed: () {
               setState(() {
@@ -211,11 +248,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
               width: 270,
               height: 170,
               decoration: BoxDecoration(
-                border: Border.all(color: _isMultiScan ? const Color(0xFF38BDF8) : Colors.white, width: 2.5),
-                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _isMultiScan ? DesignTokens.primary : Colors.white, width: 2.5),
+                borderRadius: DesignTokens.borderRadius('lg'),
                 boxShadow: [
                   BoxShadow(
-                    color: (_isMultiScan ? const Color(0xFF38BDF8) : Colors.white).withValues(alpha: 0.15),
+                    color: (_isMultiScan ? DesignTokens.primary : Colors.white).withValues(alpha: 0.15),
                     blurRadius: 16,
                     spreadRadius: 2,
                   ),
@@ -231,38 +268,76 @@ class _ScannerScreenState extends State<ScannerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_isMultiScan && _scannedCodes.isNotEmpty) ...[
+                if (_isMultiScan) ...[
                   Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    margin: DesignTokens.paddingOnly(bottom: 'md'),
+                    padding: DesignTokens.paddingSymmetric(h: 'lg', v: 'md'),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
+                      color: DesignTokens.secondaryDark.withValues(alpha: 0.92),
+                      borderRadius: DesignTokens.borderRadius('lg'),
+                      border: Border.all(color: DesignTokens.primary, width: 1.5),
                     ),
-                    child: Row(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: Color(0xFF4ADE80), size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Último: ${_lastCode ?? ""}',
-                            style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: DesignTokens.success, size: 20),
+                            DesignTokens.spaceMd.width,
+                            Expanded(
+                              child: Text(
+                                _scannedCodes.isEmpty ? 'Sin códigos aún' : 'Último: ${_lastCode ?? ""}',
+                                style: DesignTokens.style('bodyMedium').copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: DesignTokens.paddingSymmetric(h: 'sm', v: 'xs'),
+                              decoration: BoxDecoration(
+                                color: DesignTokens.primary,
+                                borderRadius: DesignTokens.borderRadius('sm'),
+                              ),
+                              child: Text(
+                                '${_scannedCodes.length} items · ${_groupedCounts.length} prod.',
+                                style: DesignTokens.style('labelSmall').copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB),
-                            borderRadius: BorderRadius.circular(8),
+                        if (_scannedCodes.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 140),
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: _groupedCounts.entries.map((e) => Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${e.key}  ×${e.value}',
+                                          style: DesignTokens.style('bodySmall').copyWith(color: Colors.white),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Quitar uno',
+                                        visualDensity: VisualDensity.compact,
+                                        icon: const Icon(Icons.remove_circle_outline, color: Colors.white70, size: 20),
+                                        onPressed: () => _removeOneCode(e.key),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Quitar todos',
+                                        visualDensity: VisualDensity.compact,
+                                        icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 20),
+                                        onPressed: () => _removeAllOfCode(e.key),
+                                      ),
+                                    ],
+                                  )).toList(),
+                            ),
                           ),
-                          child: Text(
-                            '${_scannedCodes.length} items',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -270,39 +345,44 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton.icon(
-                      onPressed: _finishMultiScan,
+                      onPressed: _scannedCodes.isEmpty ? null : _finishMultiScan,
                       icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 20),
-                      label: Text('Listo · Cargar ${_scannedCodes.length} Productos', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      label: Text(
+                        _scannedCodes.isEmpty
+                            ? 'Terminar (sin códigos)'
+                            : 'Terminar · Cargar ${_scannedCodes.length} Productos',
+                        style: DesignTokens.style('titleSmall').copyWith(color: Colors.white),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A),
+                        backgroundColor: DesignTokens.success,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
                         elevation: 4,
                       ),
                     ),
                   ),
                 ] else ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: DesignTokens.paddingSymmetric(h: 'lg', v: 'md'),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: DesignTokens.borderRadius('lg'),
                       border: Border.all(color: Colors.white24),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           _isMultiScan ? Icons.all_inclusive_rounded : Icons.qr_code_scanner_rounded,
-                          color: _isMultiScan ? const Color(0xFF38BDF8) : Colors.white70,
+                          color: _isMultiScan ? DesignTokens.primary : Colors.white70,
                           size: 22,
                         ),
-                        const SizedBox(width: 10),
+                        DesignTokens.spaceMd.width,
                         Expanded(
                           child: Text(
                             _isMultiScan
                                 ? 'Modo Ráfaga: Apunta a varios productos seguidos'
                                 : 'Apunta la cámara al código de barras del producto',
-                            style: const TextStyle(color: Colors.white, fontSize: 13),
+                            style: DesignTokens.style('bodySmall').copyWith(color: Colors.white),
                           ),
                         ),
                       ],

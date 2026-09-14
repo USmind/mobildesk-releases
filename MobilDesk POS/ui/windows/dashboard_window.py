@@ -95,21 +95,9 @@ class DashboardWindow(QMainWindow):
         if self.btn_update_badge is not None:
             return
 
-        self.btn_update_badge = QPushButton(f"🚀 ¡Actualización v{version} lista!")
-        self.btn_update_badge.setStyleSheet("""
-            QPushButton {
-                background: #16a34a;
-                color: #ffffff;
-                font-size: 13px;
-                font-weight: 800;
-                padding: 6px 14px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover {
-                background: #15803d;
-            }
-        """)
+        self.btn_update_badge = QPushButton(f"¡Actualización v{version} lista!")
+        self.btn_update_badge.setProperty("variant", "success")
+        self.btn_update_badge.setToolTip("Ver detalles e instalar la actualización")
         self.btn_update_badge.clicked.connect(lambda: self.preguntar_y_aplicar_actualizacion(version, installer_path, changelog))
         self.header_pos.insertWidget(self.header_pos.count() - 1, self.btn_update_badge)
 
@@ -118,7 +106,7 @@ class DashboardWindow(QMainWindow):
         msg.setWindowTitle(f"Actualización Disponible (v{version})")
         msg.setIcon(QMessageBox.Information)
         msg.setText(
-            f"<h3>🚀 ¡Nueva versión de MobilDesk POS lista para instalar!</h3>"
+            f"<h3>Nueva versión de MobilDesk POS lista para instalar!</h3>"
             f"<p><b>Versión disponible:</b> v{version} (Actual: v{CURRENT_VERSION})</p>"
             f"<p><b>Novedades / Mejoras:</b><br>{changelog}</p>"
             f"<hr>"
@@ -126,10 +114,10 @@ class DashboardWindow(QMainWindow):
             f"El sistema se cerrará, se actualizará en 10 segundos y se volverá a abrir solo.<br>"
             f"<b>Todos tus productos, ventas y configuraciones se conservarán 100% intactos.</b></p>"
         )
-        btn_si = msg.addButton("🚀 Sí, Actualizar Ahora (10s)", QMessageBox.YesRole)
-        btn_si.setStyleSheet("background-color: #16a34a; color: white; font-weight: 800; padding: 9px 20px; border-radius: 8px; border: none;")
+        btn_si = msg.addButton("Sí, Actualizar Ahora (10s)", QMessageBox.YesRole)
+        btn_si.setProperty("variant", "success")
         btn_no = msg.addButton("Más Tarde", QMessageBox.NoRole)
-        btn_no.setStyleSheet("background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 9px 18px; border-radius: 8px;")
+        btn_no.setProperty("variant", "ghost")
 
         msg.exec()
         if msg.clickedButton() == btn_si:
@@ -161,7 +149,7 @@ class DashboardWindow(QMainWindow):
     def actualizar_nombre_negocio(self, nuevo_nombre):
         self.nombre_negocio = nuevo_nombre
         self.setWindowTitle(f"{self.nombre_negocio} - Sistema de Ventas e Inventario")
-        self.brand_label.setText(f"{self.nombre_negocio.upper()}\n\n{self.usuario['nombre']}")
+        self.brand_label.setText(f"{self.nombre_negocio.upper()}")
 
     def actualizar_resumen_header(self):
         if hasattr(self, "resumen_hoy_label") and self.resumen_hoy_label:
@@ -169,13 +157,6 @@ class DashboardWindow(QMainWindow):
             self.resumen_hoy_label.setText(f"Hoy: {summary['cantidad_ventas']} ventas | Bs {float(summary['total_bs']):,.2f}")
 
     def crear_interfaz(self):
-        # Estilo Global Limpio sin bordes en etiquetas
-        self.setStyleSheet("""
-            QMainWindow { background-color: #f8fafc; }
-            QLabel { border: none; background: transparent; color: #1e293b; }
-            QFrame { border: none; }
-        """)
-
         root = QWidget()
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -185,28 +166,33 @@ class DashboardWindow(QMainWindow):
         # SIDEBAR IZQUIERDA
         # ----------------------------------------------------
         self.menu_frame = QFrame()
-        self.menu_frame.setFixedWidth(240)
+        self.menu_frame.setFixedWidth(260)
         self.menu_frame.setStyleSheet("""
-            QFrame { background-color: #0f172a; }
-            QLabel { color: #ffffff; border: none; background: transparent; }
+            QFrame { background-color: #0B0F1A; }
+            QLabel { color: #F7F8FA; border: none; background: transparent; }
+            QLabel[cat="section"] {
+                color: #5B6580;
+                font-size: 10.5px;
+                font-weight: 700;
+                padding: 12px 16px 4px 16px;
+            }
             QPushButton {
                 background: transparent;
-                color: #cbd5e1;
+                color: #A3AEC9;
                 text-align: left;
-                border-radius: 9px;
-                font-size: 13.5px;
-                padding: 11px 14px;
-                font-weight: 600;
+                border-radius: 8px;
+                font-size: 13px;
+                padding: 11px 16px;
+                font-weight: 500;
                 border: none;
             }
-            QPushButton:hover {
-                background: rgba(148, 163, 184, 0.12);
-                color: #ffffff;
-            }
+            QPushButton:hover { background: #1C2333; color: #F7F8FA; }
             QPushButton[active="true"] {
-                background: #2563eb;
-                color: #ffffff;
-                font-weight: 700;
+                background: #2563EB;
+                color: #FFFFFF;
+                font-weight: 600;
+                border-left: 3px solid #93C5FD;
+                padding-left: 13px;
             }
             QPushButton:focus { outline: none; }
         """)
@@ -215,14 +201,21 @@ class DashboardWindow(QMainWindow):
         self.side_layout.setContentsMargins(12, 18, 12, 16)
         self.side_layout.setSpacing(4)
 
-        self.brand_label = QLabel(f"{self.nombre_negocio.upper()}\n\n{self.usuario['nombre']}")
+        self.brand_label = QLabel(f"{self.nombre_negocio.upper()}")
         self.brand_label.setAlignment(Qt.AlignCenter)
-        self.brand_label.setStyleSheet("font-size: 14px; font-weight: 800; padding: 10px 8px 14px 8px; color: #ffffff; border: none; letter-spacing: 0.4px;")
+        self.brand_label.setWordWrap(True)
+        self.brand_label.setStyleSheet("font-size: 14px; font-weight: 800; padding: 12px 8px 4px 8px; color: #F7F8FA; border: none;")
         self.side_layout.addWidget(self.brand_label)
+
+        rol_txt = "ADMINISTRADOR" if self.usuario.get("role") == "admin" else "VENDEDOR"
+        self.brand_role = QLabel(rol_txt)
+        self.brand_role.setAlignment(Qt.AlignCenter)
+        self.brand_role.setStyleSheet("font-size: 10px; font-weight: 700; color: #93C5FD; background: #1C2333; border-radius: 8px; padding: 4px 10px; margin: 0px 56px 10px 56px;")
+        self.side_layout.addWidget(self.brand_role)
 
         separador_side = QFrame()
         separador_side.setFixedHeight(1)
-        separador_side.setStyleSheet("background-color: rgba(148, 163, 184, 0.25); border: none;")
+        separador_side.setStyleSheet("background-color: #1C2333; border: none;")
         self.side_layout.addWidget(separador_side)
 
         sep_spacer = QWidget()
@@ -230,24 +223,64 @@ class DashboardWindow(QMainWindow):
         sep_spacer.setStyleSheet("background: transparent;")
         self.side_layout.addWidget(sep_spacer)
 
-        self.side_btn_container = QVBoxLayout()
+        self.side_scroll = QScrollArea()
+        self.side_scroll.setWidgetResizable(True)
+        self.side_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.side_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        # Scrollbar oscura directo en el widget (no depende de cascada).
+        self.side_scroll.verticalScrollBar().setStyleSheet("""
+            QScrollBar:vertical {
+                background: transparent;
+                width: 6px;
+                margin: 2px 1px 2px 2px;
+            }
+            QScrollBar::handle:vertical {
+                background: #2A3348;
+                border-radius: 3px;
+                min-height: 30px;
+            }
+            QScrollBar::handle:vertical:hover { background: #3B4763; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
+        side_btn_host = QWidget()
+        side_btn_host.setStyleSheet("background: transparent;")
+        self.side_btn_container = QVBoxLayout(side_btn_host)
+        self.side_btn_container.setContentsMargins(0, 0, 4, 0)
         self.side_btn_container.setSpacing(6)
-        self.side_layout.addLayout(self.side_btn_container)
+        self.side_scroll.setWidget(side_btn_host)
+        self.side_layout.addWidget(self.side_scroll, 1)
 
-        self.side_layout.addStretch()
-
-        firma = QLabel("MobilDesk POS\nMulti-Dispositivo")
-        firma.setAlignment(Qt.AlignCenter)
-        firma.setStyleSheet("font-size: 11px; color: #64748b; padding: 8px; border: none;")
-        self.side_layout.addWidget(firma)
+        firma_card = QFrame()
+        firma_card.setStyleSheet("background-color: #1C2333; border-radius: 10px; border: none;")
+        firma_layout = QHBoxLayout(firma_card)
+        firma_layout.setContentsMargins(12, 10, 12, 10)
+        firma_layout.setSpacing(10)
+        inicial = (self.usuario.get("nombre", "?").strip()[:1] or "?").upper()
+        self.user_avatar = QLabel(inicial)
+        self.user_avatar.setAlignment(Qt.AlignCenter)
+        self.user_avatar.setFixedSize(36, 36)
+        self.user_avatar.setStyleSheet("background-color: #2563EB; color: #FFFFFF; font-size: 15px; font-weight: 800; border-radius: 18px;")
+        firma_layout.addWidget(self.user_avatar)
+        user_col = QVBoxLayout()
+        user_col.setSpacing(1)
+        self.user_name_lbl = QLabel(self.usuario.get("nombre", ""))
+        self.user_name_lbl.setStyleSheet("font-size: 12.5px; font-weight: 700; color: #F7F8FA; border: none;")
+        user_col.addWidget(self.user_name_lbl)
+        firma_sub = QLabel("MobilDesk POS")
+        firma_sub.setStyleSheet("font-size: 10px; color: #5B6580; border: none;")
+        user_col.addWidget(firma_sub)
+        firma_layout.addLayout(user_col, 1)
+        self.side_layout.addWidget(firma_card)
 
         layout.addWidget(self.menu_frame)
 
         # ----------------------------------------------------
         # ÁREA CENTRAL (QStackedWidget para navegación integrada)
         # ----------------------------------------------------
+        # Sin background propio: hereda el fondo de la ventana.
+        # (Un background-color inline aqui apaga los fondos de los
+        # QPushButton descendientes en Qt.)
         self.content_stack = QStackedWidget()
-        self.content_stack.setStyleSheet("background-color: #f8fafc;")
         layout.addWidget(self.content_stack, 1)
 
         self.setCentralWidget(root)
@@ -271,37 +304,55 @@ class DashboardWindow(QMainWindow):
 
         if self.usuario["role"] == "admin":
             buttons_def = [
-                ("🏠 Inicio (Ventas)", "Inicio"),
-                ("🧾 Historial de Ventas", "Historial"),
-                ("📦 Inventario y Productos", "Inventario"),
-                ("💵 Caja y Turnos", "Caja"),
-                ("👥 Fiados / Créditos", "Fiados"),
-                ("📊 Reportes Financieros", "Reportes"),
-                ("👤 Usuarios y Roles", "Usuarios"),
-                ("💲 Tasa USD/Bs", "Tasa USD/Bs"),
-                ("⚙️ Configurar Negocio", "Configurar Negocio"),
-                ("☁️ Sincronización", "Sincronización"),
-                ("📖 Manual y Ayuda", "Manual"),
-            ]
-            if not es_vitalicio:
-                buttons_def.append(("🔑 Activar Licencia", "Licencia"))
+                ("Inicio (Ventas)", "Inicio"),
+                ("Historial de Ventas", "Historial"),
+                ("Inventario y Productos", "Inventario"),
+                ("Caja y Turnos", "Caja"),
+                ("Fiados / Créditos", "Fiados"),
+                ("Reportes Financieros", "Reportes"),
+                ("Usuarios y Roles", "Usuarios"),
+                ("Tasa USD/Bs", "Tasa USD/Bs"),
+                ("Configurar Negocio", "Configurar Negocio"),
+                ("Sincronización", "Sincronización"),
+                ("Manual y Ayuda", "Manual"),
+            ] + ([] if es_vitalicio else [("Activar Licencia", "Licencia")])
         else:
             buttons_def = [
-                ("🏠 Inicio (Ventas)", "Inicio"),
-                ("🧾 Historial de Ventas", "Historial"),
-                ("💵 Mi Caja", "Caja"),
-                ("👥 Fiados / Créditos", "Fiados"),
-                ("📊 Mis Ventas", "Mis ventas"),
-                ("📖 Manual y Ayuda", "Manual"),
+                ("Inicio (Ventas)", "Inicio"),
+                ("Historial de Ventas", "Historial"),
+                ("Mi Caja", "Caja"),
+                ("Fiados / Créditos", "Fiados"),
+                ("Mis Ventas", "Mis ventas"),
+                ("Manual y Ayuda", "Manual"),
             ]
 
         for label_text, mod_name in buttons_def:
             btn = QPushButton(label_text)
-            btn.setMinimumHeight(40)
+            btn.setMinimumHeight(44)
             btn.setProperty("active", "false")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip(self._tooltip_modulo(mod_name))
             btn.clicked.connect(lambda checked=False, val=mod_name: self.abrir_modulo(val))
             self.side_btn_container.addWidget(btn)
             self.sidebar_buttons[mod_name] = btn
+
+    @staticmethod
+    def _tooltip_modulo(mod_name):
+        return {
+            "Inicio": "Cobrar y facturar (Punto de Venta)",
+            "Historial": "Ver ventas anteriores e imprimir tickets",
+            "Inventario": "Productos, precios, stock y ajustes",
+            "Caja": "Abrir turno, movimientos y cierre de caja",
+            "Fiados": "Cuentas por cobrar y abonos de clientes",
+            "Reportes": "Ganancias y ventas por método de pago",
+            "Mis ventas": "Tus ventas del turno actual",
+            "Usuarios": "Crear y administrar usuarios del sistema",
+            "Tasa USD/Bs": "Actualizar la tasa del dólar",
+            "Configurar Negocio": "Datos del negocio y sincronización",
+            "Sincronización": "Enlazar la app del teléfono",
+            "Licencia": "Activar tu plan de MobilDesk POS",
+            "Manual": "Ayuda paso a paso de cada función",
+        }.get(mod_name, mod_name)
 
     def _set_active_sidebar_button(self, active_mod):
         for mod, btn in self.sidebar_buttons.items():
@@ -320,22 +371,20 @@ class DashboardWindow(QMainWindow):
         self.header_pos = QHBoxLayout()
         self.header_pos.setSpacing(10)
 
-        self.pos_title_lbl = QLabel(f"Punto de Venta · {self.nombre_negocio}")
-        self.pos_title_lbl.setStyleSheet("font-size: 22px; font-weight: 800; color: #0f172a; border: none;")
-        self.header_pos.addWidget(self.pos_title_lbl)
+        # El título lo aporta el propio módulo de ventas (sin duplicar).
         self.header_pos.addStretch()
 
         self.lic_badge_container = QHBoxLayout()
         self.header_pos.addLayout(self.lic_badge_container)
 
         self.resumen_hoy_label = QLabel("Hoy: 0 ventas | Bs 0.00")
-        self.resumen_hoy_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #1e3a8a; background: #dbeafe; padding: 6px 14px; border-radius: 8px; border: none;")
+        self.resumen_hoy_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #2563EB; background: #EFF4FF; padding: 7px 14px; border-radius: 8px; border: none;")
         self.resumen_hoy_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.header_pos.addWidget(self.resumen_hoy_label)
 
         # Reloj y Fecha en tiempo real
         self.lbl_reloj = QLabel()
-        self.lbl_reloj.setStyleSheet("font-size: 13px; font-weight: 700; color: #0f766e; background: #ccfbf1; padding: 6px 12px; border-radius: 8px; border: 1px solid #99f6e4;")
+        self.lbl_reloj.setStyleSheet("font-size: 13px; font-weight: 600; color: #16A34A; background: #EAF9F0; padding: 7px 14px; border-radius: 8px; border: 1px solid #BBF0D2;")
         self.header_pos.addWidget(self.lbl_reloj)
 
         self.timer_reloj = QTimer(self)
@@ -343,22 +392,9 @@ class DashboardWindow(QMainWindow):
         self.timer_reloj.start(1000)
         self._actualizar_reloj_header()
 
-        btn_ayuda = QPushButton("❓ Manual y Ayuda")
-        btn_ayuda.setStyleSheet("""
-            QPushButton {
-                background: #ffffff;
-                color: #1e3a8a;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 6px 14px;
-                border-radius: 8px;
-                border: 1.5px solid #cbd5e1;
-            }
-            QPushButton:hover {
-                background: #f1f5f9;
-                border-color: #2563eb;
-            }
-        """)
+        btn_ayuda = QPushButton("Manual y Ayuda")
+        btn_ayuda.setProperty("variant", "ghost")
+        btn_ayuda.setToolTip("Abrir el manual y la ayuda")
         btn_ayuda.clicked.connect(lambda: self.abrir_modulo("Manual"))
         self.header_pos.addWidget(btn_ayuda)
 
@@ -375,7 +411,7 @@ class DashboardWindow(QMainWindow):
     def _actualizar_reloj_header(self):
         if hasattr(self, "lbl_reloj") and self.lbl_reloj:
             ahora = QDateTime.currentDateTime()
-            self.lbl_reloj.setText(f"🕒 {ahora.toString('hh:mm:ss ap · dd/MM/yyyy')}")
+            self.lbl_reloj.setText(f"{ahora.toString('hh:mm:ss ap · dd/MM/yyyy')}")
 
     def mostrar_inicio(self):
         lic_info = init_or_get_license_info()
@@ -393,12 +429,13 @@ class DashboardWindow(QMainWindow):
                 item.widget().deleteLater()
 
         if lic_info["estado"] == "demo":
-            lbl_lic = QLabel(f"🎁 Demo ({lic_info['dias_restantes']}d restantes)")
-            lbl_lic.setStyleSheet("background: #ffedd5; color: #c2410c; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; border: none;")
+            lbl_lic = QLabel(f"Demo ({lic_info['dias_restantes']}d restantes)")
+            lbl_lic.setStyleSheet("background: #FFFBEB; color: #B45309; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 8px; border: 1px solid #FDE68A;")
             self.lic_badge_container.addWidget(lbl_lic)
             if self.usuario["role"] == "admin":
-                btn_act = QPushButton("🔑 Activar")
-                btn_act.setStyleSheet("background: #ea580c; color: white; font-size: 12px; padding: 6px 12px; border-radius: 8px; font-weight: 700; border: none;")
+                btn_act = QPushButton("Activar")
+                btn_act.setProperty("variant", "soft")
+                btn_act.setToolTip("Activar tu plan de MobilDesk POS")
                 btn_act.clicked.connect(lambda: self.abrir_modulo("Licencia"))
                 self.lic_badge_container.addWidget(btn_act)
 
@@ -421,12 +458,21 @@ class DashboardWindow(QMainWindow):
     def abrir_modulo(self, name):
         lic_info = init_or_get_license_info()
         if lic_info.get("bloqueado", False) and name != "Licencia":
-            QMessageBox.warning(
-                self,
-                "Período de Prueba Finalizado",
-                "Tu período de prueba gratuita de 7 días ha finalizado.\n\n"
-                "Para continuar utilizando MobilDesk POS, por favor ingresa tu clave de activación."
-            )
+            if lic_info.get("motivo") == "reloj":
+                QMessageBox.warning(
+                    self,
+                    "Fecha del Sistema Inválida",
+                    "La fecha de este equipo es anterior a tu último uso de MobilDesk POS.\n\n"
+                    "Corrige la fecha y hora de Windows e intenta de nuevo.\n"
+                    "Tus datos están intactos."
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Período de Prueba Finalizado",
+                    "Tu período de prueba gratuita de 7 días ha finalizado.\n\n"
+                    "Para continuar utilizando MobilDesk POS, por favor ingresa tu clave de activación."
+                )
             name = "Licencia"
 
         if name == "Inicio":
@@ -448,6 +494,10 @@ class DashboardWindow(QMainWindow):
                 child_widget = CashWindow(self.usuario)
             elif name == "Fiados":
                 child_widget = FiadosWindow()
+                try:
+                    child_widget.fiar_mas_solicitado.connect(self._ir_a_fiar_a_cliente)
+                except Exception:
+                    pass
             elif name == "Reportes":
                 child_widget = ReportsWindow(None)
             elif name == "Mis ventas":
@@ -488,6 +538,21 @@ class DashboardWindow(QMainWindow):
 
             self.content_stack.setCurrentWidget(child_widget)
 
+    def _ir_a_fiar_a_cliente(self, cliente):
+        """Desde Fiados: abre el POS con el cliente ya elegido para fiarle más."""
+        try:
+            self.mostrar_inicio()
+            if hasattr(self, "venta_actual") and self.venta_actual:
+                self.venta_actual.set_cliente_para_fiado(cliente or {})
+                QMessageBox.information(
+                    self,
+                    "Fiar más",
+                    f"Cliente '{(cliente or {}).get('nombre','')}' cargado en Ventas.\n"
+                    f"Agrega los productos y registra como Fiado: se sumará a su misma cuenta.",
+                )
+        except Exception as e:
+            QMessageBox.warning(self, "Aviso", f"No se pudo cargar el cliente en Ventas:\n\n{e}")
+
 
 class UsersWindow(QWidget):
     def __init__(self, parent=None):
@@ -498,54 +563,20 @@ class UsersWindow(QWidget):
         self.cargar()
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QWidget { background: transparent; font-family: 'Segoe UI', sans-serif; }
-            QLabel { color: #334155; font-size: 13px; font-weight: 600; border: none; background: transparent; }
-            QLineEdit, QComboBox {
-                background: white;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13.5px;
-                min-height: 20px;
-                color: #0f172a;
-            }
-            QLineEdit:focus, QComboBox:focus { border: 2px solid #2563eb; }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #2563eb;
-                selection-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 4px;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 28px;
-                padding: 6px 10px;
-                color: #0f172a;
-                background-color: #ffffff;
-            }
-            QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
-                background-color: #2563eb;
-                color: #ffffff;
-            }
-        """)
-
+        # Estilos del tema global (ui/theme.py). Sin hoja local.
         layout = QVBoxLayout(self)
         layout.setSpacing(14)
         layout.setContentsMargins(10, 10, 10, 10)
 
         # Form Card (Crear Nuevo Usuario)
         card = QFrame()
-        card.setStyleSheet("QFrame { background: transparent; border: none; }")
+        card.setObjectName("card")
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(20, 18, 20, 18)
         card_layout.setSpacing(10)
 
-        lbl_form = QLabel("Registrar Nuevo Usuario / Cajero:")
-        lbl_form.setStyleSheet("font-size: 14px; font-weight: 700; color: #1e3a8a; border: none;")
+        lbl_form = QLabel("REGISTRAR NUEVO USUARIO / CAJERO")
+        lbl_form.setObjectName("sectionLabel")
         card_layout.addWidget(lbl_form)
 
         grid = QGridLayout()
@@ -582,18 +613,9 @@ class UsersWindow(QWidget):
 
         card_layout.addLayout(grid)
 
-        btn_save = QPushButton("➕ Crear Usuario")
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background: #2563eb;
-                color: white;
-                padding: 9px 20px;
-                border-radius: 8px;
-                font-weight: 700;
-                border: none;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        btn_save = QPushButton("Crear Usuario")
+        btn_save.setProperty("variant", "success")
+        btn_save.setToolTip("Crear el usuario con los datos ingresados")
         btn_save.clicked.connect(self.guardar)
         card_layout.addWidget(btn_save, 0, Qt.AlignRight)
 
@@ -603,38 +625,20 @@ class UsersWindow(QWidget):
         acciones_layout = QHBoxLayout()
         acciones_layout.setSpacing(10)
 
-        lbl_tabla_info = QLabel("Usuarios Registrados en el Sistema:")
-        lbl_tabla_info.setStyleSheet("font-size: 14px; font-weight: 700; color: #0f172a;")
+        lbl_tabla_info = QLabel("USUARIOS REGISTRADOS EN EL SISTEMA")
+        lbl_tabla_info.setObjectName("sectionLabel")
         acciones_layout.addWidget(lbl_tabla_info)
         acciones_layout.addStretch()
 
-        btn_editar = QPushButton("✏️ Editar Usuario")
-        btn_editar.setStyleSheet("""
-            QPushButton {
-                background: #f8fafc;
-                color: #1e293b;
-                border: 1.5px solid #cbd5e1;
-                padding: 8px 16px;
-                border-radius: 8px;
-                font-weight: 700;
-            }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_editar = QPushButton("Editar Usuario")
+        btn_editar.setProperty("variant", "ghost")
+        btn_editar.setToolTip("Editar el usuario seleccionado")
         btn_editar.clicked.connect(self.editar_usuario)
         acciones_layout.addWidget(btn_editar)
 
-        btn_eliminar = QPushButton("🗑️ Eliminar Usuario")
-        btn_eliminar.setStyleSheet("""
-            QPushButton {
-                background: #fef2f2;
-                color: #dc2626;
-                border: 1.5px solid #fca5a5;
-                padding: 8px 16px;
-                border-radius: 8px;
-                font-weight: 700;
-            }
-            QPushButton:hover { background: #fee2e2; }
-        """)
+        btn_eliminar = QPushButton("Eliminar Usuario")
+        btn_eliminar.setProperty("variant", "danger")
+        btn_eliminar.setToolTip("Eliminar el usuario seleccionado")
         btn_eliminar.clicked.connect(self.eliminar_usuario)
         acciones_layout.addWidget(btn_eliminar)
 
@@ -649,10 +653,6 @@ class UsersWindow(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.setStyleSheet("""
-            QTableWidget { background: white; border: 1px solid #cbd5e1; border-radius: 10px; gridline-color: #f1f5f9; }
-            QHeaderView::section { background: #f8fafc; color: #475569; font-weight: 700; border: none; padding: 8px; }
-        """)
         self.table.doubleClicked.connect(self.editar_usuario)
         layout.addWidget(self.table)
 
@@ -711,46 +711,14 @@ class UsersWindow(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle(f"Editar Usuario: {user['nombre']}")
         dialog.resize(440, 360)
-        dialog.setStyleSheet("""
-            QDialog { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
-            QLabel { color: #1e293b; font-weight: 600; font-size: 13px; }
-            QLineEdit, QComboBox {
-                background: white;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13.5px;
-                color: #0f172a;
-            }
-            QLineEdit:focus, QComboBox:focus { border: 2px solid #2563eb; }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #2563eb;
-                selection-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 4px;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 28px;
-                padding: 6px 10px;
-                color: #0f172a;
-                background-color: #ffffff;
-            }
-            QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
-                background-color: #2563eb;
-                color: #ffffff;
-            }
-        """)
+        dialog.setMinimumSize(400, 320)
 
         d_layout = QVBoxLayout(dialog)
         d_layout.setSpacing(12)
         d_layout.setContentsMargins(20, 20, 20, 20)
 
-        lbl_t = QLabel(f"✏️ Modificar Datos de Cuenta")
-        lbl_t.setStyleSheet("font-size: 16px; font-weight: 800; color: #1e3a8a;")
+        lbl_t = QLabel("Modificar Datos de Cuenta")
+        lbl_t.setObjectName("pageTitle")
         d_layout.addWidget(lbl_t)
 
         form = QFormLayout()
@@ -783,31 +751,13 @@ class UsersWindow(QWidget):
         btn_box.setSpacing(10)
 
         btn_cancel = QPushButton("Cancelar")
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                color: #334155;
-                border: 1.5px solid #cbd5e1;
-                padding: 8px 18px;
-                border-radius: 8px;
-                font-weight: 700;
-            }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_cancel.setProperty("variant", "ghost")
+        btn_cancel.setToolTip("Cerrar sin guardar cambios")
         btn_cancel.clicked.connect(dialog.reject)
 
-        btn_ok = QPushButton("💾 Guardar Cambios")
-        btn_ok.setStyleSheet("""
-            QPushButton {
-                background: #2563eb;
-                color: white;
-                padding: 8px 22px;
-                border-radius: 8px;
-                font-weight: 700;
-                border: none;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        btn_ok = QPushButton("Guardar Cambios")
+        btn_ok.setProperty("variant", "success")
+        btn_ok.setToolTip("Guardar los cambios del usuario")
 
         def on_save():
             try:
@@ -853,10 +803,10 @@ class UsersWindow(QWidget):
             f"Esta acción no se puede deshacer."
         )
 
-        btn_eliminar = msg.addButton("🗑️ Sí, Eliminar", QMessageBox.YesRole)
-        btn_eliminar.setStyleSheet("background-color: #dc2626; color: white; font-weight: 700; padding: 8px 18px; border-radius: 7px; border: none;")
+        btn_eliminar = msg.addButton("Sí, Eliminar", QMessageBox.YesRole)
+        btn_eliminar.setProperty("variant", "danger")
         btn_cancelar = msg.addButton("Cancelar", QMessageBox.NoRole)
-        btn_cancelar.setStyleSheet("background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 8px 18px; border-radius: 7px;")
+        btn_cancelar.setProperty("variant", "ghost")
 
         msg.exec()
 

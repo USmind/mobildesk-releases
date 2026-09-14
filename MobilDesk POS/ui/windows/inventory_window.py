@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -29,6 +30,8 @@ from modules.productos.product_service import (
     ProductoYaExiste,
     get_categories,
     create_category,
+    get_suppliers,
+    create_supplier,
 )
 from modules.inventario.inventory_service import (
     add_inventory_entry,
@@ -44,6 +47,9 @@ from modules.configuracion.exchange_rate_service import (
 )
 
 UNIDADES = ["Unidad", "Kg", "g", "L", "ml", "Paquete", "Caja", "Bulto", "Docena", "Metro", "Saco"]
+
+NUEVA_CATEGORIA = "__nueva_categoria__"
+NUEVO_PROVEEDOR = "__nuevo_proveedor__"
 
 
 def category_box(selected=None):
@@ -68,8 +74,16 @@ class ProductDialog(QDialog):
         self.es_edicion = producto is not None
         self.codigo_precargado = codigo_precargado
         self.setWindowTitle("Modificar Producto" if self.es_edicion else "Nuevo Producto")
-        self.resize(650, 520)
-        self.setMinimumSize(560, 460)
+        # Tamaño adaptativo: cabe en cualquier PC (usa el área libre real,
+        # descontando barra de tareas). Nunca más alto que la pantalla.
+        try:
+            avail = QApplication.primaryScreen().availableGeometry()
+            w = min(760, avail.width() - 60)
+            h = min(800, avail.height() - 60)
+        except Exception:
+            w, h = 720, 700
+        self.resize(max(640, w), max(560, h))
+        self.setMinimumSize(620, 540)
         self.tasa_actual = 0.0
         self.margen_configurado = 0.0
         self.cargar_tasa_y_margen()
@@ -85,64 +99,24 @@ class ProductDialog(QDialog):
             self.margen_configurado = 0.0
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QDialog { background-color: #ffffff; font-family: 'Segoe UI', sans-serif; }
-            QLabel { background: transparent; border: none; color: #334155; font-size: 13px; font-weight: 600; }
-            QLineEdit { background-color: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; min-height: 22px; color: #0f172a; }
-            QLineEdit:focus { border: 2px solid #2563eb; }
-            QComboBox {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 7px;
-                padding: 8px 10px;
-                font-size: 13.5px;
-                min-height: 22px;
-                color: #0f172a;
-            }
-            QComboBox:focus { border: 2px solid #2563eb; }
-            QComboBox QLineEdit {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: none;
-                padding: 0px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #2563eb;
-                selection-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 4px;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 28px;
-                padding: 6px 10px;
-                color: #0f172a;
-                background-color: #ffffff;
-            }
-            QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
-                background-color: #2563eb;
-                color: #ffffff;
-            }
-            QFrame#calc_card { background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; }
-            QScrollArea { border: none; background: transparent; }
-        """)
-
+        # Estilo global proveniente de ui/theme.py (GLOBAL_QSS aplicado en app).
+        # Sin stylesheets locales: botones usan variant, etiquetas usan objectName.
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(24, 18, 24, 18)
+        main_layout.setSpacing(12)
 
         # Encabezado
         title = QLabel("MODIFICAR PRODUCTO" if self.es_edicion else "NUEVO PRODUCTO")
-        title.setStyleSheet("font-size: 19px; font-weight: 800; color: #1e293b; border: none;")
+        title.setObjectName("pageTitle")
         main_layout.addWidget(title)
+        sub = QLabel("Completa los datos y fija el precio de venta con la calculadora.")
+        sub.setObjectName("pageSubtitle")
+        main_layout.addWidget(sub)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll_content = QWidget()
-        scroll_content.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(scroll_content)
         layout.setSpacing(14)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -150,32 +124,52 @@ class ProductDialog(QDialog):
         # Formulario Superior
         form_grid = QGridLayout()
         form_grid.setHorizontalSpacing(14)
-        form_grid.setVerticalSpacing(10)
+        form_grid.setVerticalSpacing(12)
+        form_grid.setColumnStretch(0, 1)
+        form_grid.setColumnStretch(1, 1)
 
         # Fila 0 y 1: Código (escaneable) y Nombre
-        lbl_cod = QLabel("Código / Código de Barras (*):")
+        lbl_cod = QLabel("CÓDIGO / CÓDIGO DE BARRAS (*)")
+        lbl_cod.setObjectName("sectionLabel")
+        lbl_cod.setWordWrap(True)
         form_grid.addWidget(lbl_cod, 0, 0)
         self.txt_codigo = QLineEdit()
         self.txt_codigo.setPlaceholderText("Escanea o escribe el código de barras")
-        if self.es_edicion:
-            self.txt_codigo.setReadOnly(True)
-            self.txt_codigo.setStyleSheet("background-color: #f1f5f9; font-weight: 700;")
-        elif self.codigo_precargado:
+        if not self.es_edicion and self.codigo_precargado:
             self.txt_codigo.setText(self.codigo_precargado)
         form_grid.addWidget(self.txt_codigo, 1, 0)
 
-        lbl_nom = QLabel("Nombre del Producto (*):")
+        lbl_nom = QLabel("NOMBRE DEL PRODUCTO (*)")
+        lbl_nom.setObjectName("sectionLabel")
+        lbl_nom.setWordWrap(True)
         form_grid.addWidget(lbl_nom, 0, 1)
         self.txt_nombre = QLineEdit()
         self.txt_nombre.setPlaceholderText("Ej: Arroz Blanco 1Kg")
         form_grid.addWidget(self.txt_nombre, 1, 1)
 
         # Fila 2 y 3: Unidad de Medida
-        lbl_uni = QLabel("Unidad de Medida:")
+        lbl_uni = QLabel("UNIDAD DE MEDIDA")
+        lbl_uni.setObjectName("sectionLabel")
         form_grid.addWidget(lbl_uni, 2, 0)
         self.combo_unidad = QComboBox()
         self.combo_unidad.addItems(UNIDADES)
         form_grid.addWidget(self.combo_unidad, 3, 0)
+
+        # Fila 4 y 5: Categoría y Proveedor lado a lado (opcionales)
+        lbl_cat = QLabel("CATEGORÍA")
+        lbl_cat.setObjectName("sectionLabel")
+        form_grid.addWidget(lbl_cat, 4, 0)
+        lbl_prov = QLabel("PROVEEDOR")
+        lbl_prov.setObjectName("sectionLabel")
+        form_grid.addWidget(lbl_prov, 4, 1)
+        self.combo_categoria = QComboBox()
+        self.combo_proveedor = QComboBox()
+        form_grid.addWidget(self.combo_categoria, 5, 0)
+        form_grid.addWidget(self.combo_proveedor, 5, 1)
+        self._cargar_combo_categoria()
+        self._cargar_combo_proveedor()
+        self.combo_categoria.currentIndexChanged.connect(self._on_categoria_cambiada)
+        self.combo_proveedor.currentIndexChanged.connect(self._on_proveedor_cambiado)
 
         layout.addLayout(form_grid)
 
@@ -183,58 +177,62 @@ class ProductDialog(QDialog):
         # CALCULADORA DE PRECIOS Y GANANCIA
         # ====================================================
         calc_box = QFrame()
-        calc_box.setObjectName("calc_card")
+        calc_box.setObjectName("card")
         calc_layout = QVBoxLayout(calc_box)
-        calc_layout.setSpacing(10)
+        calc_layout.setSpacing(12)
         calc_layout.setContentsMargins(16, 14, 16, 14)
 
-        lbl_calc_title = QLabel("💰 Calculadora de Precios y Ganancia")
-        lbl_calc_title.setStyleSheet("font-size: 14px; font-weight: 700; color: #1e3a8a; border: none;")
+        lbl_calc_title = QLabel("CALCULADORA DE PRECIOS Y GANANCIA")
+        lbl_calc_title.setObjectName("sectionLabel")
         calc_layout.addWidget(lbl_calc_title)
 
         prices_grid = QGridLayout()
         prices_grid.setHorizontalSpacing(14)
-        prices_grid.setVerticalSpacing(6)
+        prices_grid.setVerticalSpacing(12)
+        prices_grid.setColumnStretch(0, 1)
+        prices_grid.setColumnStretch(1, 1)
+        prices_grid.setColumnStretch(2, 1)
 
         # Etiquetas (Fila 0)
-        lbl_p1 = QLabel("Costo Base ($ USD):")
-        lbl_p2 = QLabel("Ganancia (%):")
-        lbl_p3 = QLabel("Precio Venta ($ USD):")
+        lbl_p1 = QLabel("COSTO BASE ($ USD)")
+        lbl_p1.setObjectName("sectionLabel")
+        lbl_p2 = QLabel("GANANCIA (%)")
+        lbl_p2.setObjectName("sectionLabel")
+        lbl_p3 = QLabel("PRECIO VENTA ($ USD)")
+        lbl_p3.setObjectName("sectionLabel")
         prices_grid.addWidget(lbl_p1, 0, 0)
         prices_grid.addWidget(lbl_p2, 0, 1)
         prices_grid.addWidget(lbl_p3, 0, 2)
 
         # Inputs (Fila 1)
         self.txt_costo_usd = QLineEdit("0.00")
-        self.txt_costo_usd.setStyleSheet("font-size: 14px; font-weight: 600;")
         self.txt_costo_usd.textChanged.connect(self._recalcular_desde_costo)
         prices_grid.addWidget(self.txt_costo_usd, 1, 0)
 
         self.txt_margen_pct = QLineEdit(str(self.margen_configurado if self.margen_configurado > 0 else 30.0))
-        self.txt_margen_pct.setStyleSheet("font-size: 14px; font-weight: 600;")
         self.txt_margen_pct.textChanged.connect(self._recalcular_desde_costo)
         prices_grid.addWidget(self.txt_margen_pct, 1, 1)
 
         self.txt_precio_usd = QLineEdit("0.00")
-        self.txt_precio_usd.setStyleSheet("font-size: 14px; font-weight: 700; color: #15803d;")
         self.txt_precio_usd.textChanged.connect(self._recalcular_desde_precio_usd)
         prices_grid.addWidget(self.txt_precio_usd, 1, 2)
 
-        # Botones Rápidos de Margen (Fila 2)
+        # Botones Rápidos de Margen (Fila 2, a todo lo ancho)
         quick_btns = QHBoxLayout()
-        quick_btns.setSpacing(4)
+        quick_btns.setSpacing(12)
         for pct in [15, 20, 30, 40, 50]:
             btn_pct = QPushButton(f"{pct}%")
-            btn_pct.setStyleSheet("background: #e2e8f0; color: #1e293b; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 700; border: none;")
+            btn_pct.setProperty("variant", "soft")
+            btn_pct.setToolTip(f"Aplicar margen de ganancia del {pct}%")
             btn_pct.clicked.connect(lambda ch=False, val=pct: self._aplicar_margen_rapido(val))
             quick_btns.addWidget(btn_pct)
-        prices_grid.addLayout(quick_btns, 2, 1)
+        prices_grid.addLayout(quick_btns, 2, 0, 1, 3)
 
         calc_layout.addLayout(prices_grid)
 
         # Resumen en Bolívares
         self.lbl_preview_bs = QLabel("")
-        self.lbl_preview_bs.setStyleSheet("font-size: 13px; font-weight: 700; color: #1e40af; padding-top: 4px; border: none;")
+        self.lbl_preview_bs.setObjectName("money")
         self.lbl_preview_bs.setWordWrap(True)
         calc_layout.addWidget(self.lbl_preview_bs)
 
@@ -244,15 +242,18 @@ class ProductDialog(QDialog):
 
         # Botones Inferiores
         actions = QHBoxLayout()
+        actions.setSpacing(12)
         btn_cancel = QPushButton("Cancelar")
-        btn_cancel.setStyleSheet("background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 9px 18px; border-radius: 7px; font-weight: 600;")
+        btn_cancel.setProperty("variant", "ghost")
+        btn_cancel.setToolTip("Cerrar sin guardar cambios")
         btn_cancel.clicked.connect(self.reject)
         actions.addWidget(btn_cancel)
 
         actions.addStretch()
 
-        btn_save = QPushButton("💾 Guardar Producto")
-        btn_save.setStyleSheet("background: #2563eb; color: white; padding: 9px 24px; border-radius: 7px; font-weight: 700; font-size: 14px; border: none;")
+        btn_save = QPushButton("Guardar Producto")
+        btn_save.setProperty("variant", "success")
+        btn_save.setToolTip("Guardar los datos del producto")
         btn_save.clicked.connect(self.validar_y_guardar)
         actions.addWidget(btn_save)
 
@@ -276,7 +277,7 @@ class ProductDialog(QDialog):
             ganancia_usd = precio_usd - costo
             tasa_str = f"{self.tasa_actual:,.2f}" if self.tasa_actual > 0 else "Sin tasa"
             self.lbl_preview_bs.setText(
-                f"💵 Precio al Público: ${precio_usd:,.2f} USD  âž”  Bs {precio_bs:,.2f} (Tasa: {tasa_str})  |  Ganancia: +${ganancia_usd:,.2f}"
+                f"Precio al Público: ${precio_usd:,.2f} USD  —  Bs {precio_bs:,.2f} (Tasa: {tasa_str})  |  Ganancia: +${ganancia_usd:,.2f}"
             )
         except Exception:
             pass
@@ -296,10 +297,89 @@ class ProductDialog(QDialog):
             ganancia_usd = precio_usd - costo
             tasa_str = f"{self.tasa_actual:,.2f}" if self.tasa_actual > 0 else "Sin tasa"
             self.lbl_preview_bs.setText(
-                f"💵 Precio al Público: ${precio_usd:,.2f} USD  âž”  Bs {precio_bs:,.2f} (Tasa: {tasa_str})  |  Ganancia: +${ganancia_usd:,.2f}"
+                f"Precio al Público: ${precio_usd:,.2f} USD  —  Bs {precio_bs:,.2f} (Tasa: {tasa_str})  |  Ganancia: +${ganancia_usd:,.2f}"
             )
         except Exception:
             pass
+
+    def _cargar_combo_categoria(self, seleccionar_id=None):
+        self.combo_categoria.blockSignals(True)
+        try:
+            self.combo_categoria.clear()
+            self.combo_categoria.addItem("Sin categoría", None)
+            try:
+                categorias = get_categories()
+            except Exception:
+                categorias = []
+            for c in categorias:
+                self.combo_categoria.addItem(c["nombre"], c["id"])
+            self.combo_categoria.addItem("＋ Nueva categoría...", NUEVA_CATEGORIA)
+            if seleccionar_id is not None:
+                idx = self.combo_categoria.findData(seleccionar_id)
+                if idx >= 0:
+                    self.combo_categoria.setCurrentIndex(idx)
+        finally:
+            self.combo_categoria.blockSignals(False)
+
+    def _cargar_combo_proveedor(self, seleccionar_id=None):
+        self.combo_proveedor.blockSignals(True)
+        try:
+            self.combo_proveedor.clear()
+            self.combo_proveedor.addItem("Sin proveedor", None)
+            try:
+                proveedores = get_suppliers()
+            except Exception:
+                proveedores = []
+            for s in proveedores:
+                self.combo_proveedor.addItem(s["nombre"], s["id"])
+            self.combo_proveedor.addItem("＋ Nuevo proveedor...", NUEVO_PROVEEDOR)
+            if seleccionar_id is not None:
+                idx = self.combo_proveedor.findData(seleccionar_id)
+                if idx >= 0:
+                    self.combo_proveedor.setCurrentIndex(idx)
+        finally:
+            self.combo_proveedor.blockSignals(False)
+
+    def _on_categoria_cambiada(self, index):
+        if self.combo_categoria.itemData(index) == NUEVA_CATEGORIA:
+            nombre, ok = QInputDialog.getText(self, "Nueva categoría", "Nombre de la categoría:")
+            if ok and (nombre or "").strip():
+                try:
+                    nuevo_id = create_category(nombre.strip())
+                except Exception as e:
+                    QMessageBox.warning(self, "Aviso", f"No se pudo crear la categoría: {e}")
+                    self.combo_categoria.setCurrentIndex(0)
+                    return
+                self._cargar_combo_categoria(seleccionar_id=nuevo_id)
+            else:
+                self.combo_categoria.setCurrentIndex(0)
+
+    def _on_proveedor_cambiado(self, index):
+        if self.combo_proveedor.itemData(index) == NUEVO_PROVEEDOR:
+            nombre, ok = QInputDialog.getText(self, "Nuevo proveedor", "Nombre del proveedor:")
+            if ok and (nombre or "").strip():
+                try:
+                    nuevo_id = create_supplier(nombre.strip())
+                except ValueError as e:
+                    # Ya existe: seleccionar el existente en vez de duplicar
+                    try:
+                        existentes = get_suppliers()
+                    except Exception:
+                        existentes = []
+                    hallado = next((s["id"] for s in existentes if str(s["nombre"]).strip().lower() == nombre.strip().lower()), None)
+                    if hallado is not None:
+                        self._cargar_combo_proveedor(seleccionar_id=hallado)
+                    else:
+                        QMessageBox.warning(self, "Aviso", str(e))
+                        self.combo_proveedor.setCurrentIndex(0)
+                    return
+                except Exception as e:
+                    QMessageBox.warning(self, "Aviso", f"No se pudo crear el proveedor: {e}")
+                    self.combo_proveedor.setCurrentIndex(0)
+                    return
+                self._cargar_combo_proveedor(seleccionar_id=nuevo_id)
+            else:
+                self.combo_proveedor.setCurrentIndex(0)
 
     def cargar_datos_si_edicion(self):
         if not self.producto:
@@ -308,6 +388,16 @@ class ProductDialog(QDialog):
         self.txt_codigo.setText(p["codigo"])
         self.txt_nombre.setText(p["nombre"])
         self.combo_unidad.setCurrentText(p["unidad"] if ("unidad" in p.keys() and p["unidad"]) else "Unidad")
+        try:
+            cat_id = p["categoria_id"] if ("categoria_id" in p.keys() and p["categoria_id"]) else None
+        except Exception:
+            cat_id = None
+        try:
+            prov_id = p["proveedor_id"] if ("proveedor_id" in p.keys() and p["proveedor_id"]) else None
+        except Exception:
+            prov_id = None
+        self._cargar_combo_categoria(seleccionar_id=cat_id)
+        self._cargar_combo_proveedor(seleccionar_id=prov_id)
 
         precio_actual = float(p["precio_usd"] if p["precio_usd"] is not None else 0.0)
         self.txt_costo_usd.setText(f"{precio_actual:.2f}")
@@ -334,6 +424,12 @@ class ProductDialog(QDialog):
             QMessageBox.warning(self, "Aviso", "Los valores numéricos no son válidos.")
             return
 
+        categoria_id = self.combo_categoria.currentData()
+        if categoria_id == NUEVA_CATEGORIA:
+            categoria_id = None
+        proveedor_id = self.combo_proveedor.currentData()
+        if proveedor_id == NUEVO_PROVEEDOR:
+            proveedor_id = None
         self.datos_resultado = {
             "codigo": codigo,
             "nombre": nombre,
@@ -341,7 +437,8 @@ class ProductDialog(QDialog):
             "precio_usd": precio_usd,
             "stock_minimo": 0,
             "stock_inicial": 0,
-            "categoria_id": None,
+            "categoria_id": categoria_id,
+            "proveedor_id": proveedor_id,
             "codigo_barras": codigo,
         }
         self.accept()
@@ -357,54 +454,17 @@ class InventoryMovementDialog(QDialog):
         self.usuario_id = usuario_id
         self.setWindowTitle("Entrada de Mercancía" if tipo_inicial == "entrada" else "Ajuste de Inventario")
         self.resize(520, 320)
+        self.setMinimumSize(460, 300)
         self.crear_interfaz(productos, tipo_inicial)
 
     def crear_interfaz(self, productos, tipo_inicial):
-        self.setStyleSheet("""
-            QDialog { background-color: #ffffff; font-family: 'Segoe UI', sans-serif; }
-            QLabel { background: transparent; border: none; color: #334155; font-size: 13px; font-weight: 600; }
-            QLineEdit { background-color: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 7px; padding: 8px 10px; font-size: 13.5px; min-height: 22px; color: #0f172a; }
-            QLineEdit:focus { border: 2px solid #2563eb; }
-            QComboBox {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 7px;
-                padding: 8px 10px;
-                font-size: 13.5px;
-                min-height: 22px;
-                color: #0f172a;
-            }
-            QComboBox:focus { border: 2px solid #2563eb; }
-            QComboBox QLineEdit {
-                background-color: #ffffff;
-                color: #0f172a;
-                border: none;
-                padding: 0px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #2563eb;
-                selection-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 4px;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 28px;
-                padding: 6px 10px;
-                color: #0f172a;
-                background-color: #ffffff;
-            }
-            QComboBox QAbstractItemView::item:selected, QComboBox QAbstractItemView::item:hover {
-                background-color: #2563eb;
-                color: #ffffff;
-            }
-        """)
         layout = QFormLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setContentsMargins(24, 18, 24, 18)
+
+        lbl_sec = QLabel("DATOS DEL MOVIMIENTO")
+        lbl_sec.setObjectName("sectionLabel")
+        layout.addRow(lbl_sec)
 
         self.producto = QComboBox()
         for p in productos:
@@ -431,10 +491,14 @@ class InventoryMovementDialog(QDialog):
         layout.addRow("Motivo / Observación:", self.motivo)
 
         info = QLabel("Nota: En 'Ajuste' usa cantidad positiva para sumar stock o negativa para restar.")
-        info.setStyleSheet("color: #64748b; font-size: 12px; border: none;")
+        info.setObjectName("pageSubtitle")
         layout.addRow(info)
 
         botones = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        botones.button(QDialogButtonBox.Ok).setText("Guardar")
+        botones.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        botones.button(QDialogButtonBox.Ok).setToolTip("Guardar el movimiento de inventario")
+        botones.button(QDialogButtonBox.Cancel).setToolTip("Cerrar sin guardar cambios")
         botones.accepted.connect(self.validar_y_aceptar)
         botones.rejected.connect(self.reject)
         layout.addRow(botones)
@@ -487,11 +551,14 @@ class InventoryHistoryDialog(QDialog):
     def crear_interfaz(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
-        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setContentsMargins(24, 18, 24, 18)
 
         titulo = QLabel("HISTORIAL DE MOVIMIENTOS")
-        titulo.setStyleSheet("font-size: 18px; font-weight: 800; color: #1e293b; border: none;")
+        titulo.setObjectName("pageTitle")
         layout.addWidget(titulo)
+        sub = QLabel("Consulta entradas y ajustes registrados en el inventario.")
+        sub.setObjectName("pageSubtitle")
+        layout.addWidget(sub)
 
         self.tabla = QTableWidget()
         self.tabla.verticalHeader().setVisible(False)
@@ -506,10 +573,13 @@ class InventoryHistoryDialog(QDialog):
         layout.addWidget(self.tabla)
 
         acciones = QHBoxLayout()
-        boton_modificar = QPushButton("✏️ Modificar Motivo")
-        boton_eliminar = QPushButton("🗑️ Eliminar Movimiento")
-        boton_modificar.setStyleSheet("background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 7px 14px; border-radius: 6px; font-weight: 600;")
-        boton_eliminar.setStyleSheet("background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; padding: 7px 14px; border-radius: 6px; font-weight: 600;")
+        acciones.setSpacing(12)
+        boton_modificar = QPushButton("Modificar Motivo")
+        boton_eliminar = QPushButton("Eliminar Movimiento")
+        boton_modificar.setProperty("variant", "ghost")
+        boton_modificar.setToolTip("Editar el motivo del movimiento seleccionado")
+        boton_eliminar.setProperty("variant", "danger")
+        boton_eliminar.setToolTip("Eliminar el movimiento seleccionado")
         boton_modificar.clicked.connect(self.modificar_movimiento)
         boton_eliminar.clicked.connect(self.eliminar_movimiento)
         acciones.addWidget(boton_modificar)
@@ -517,7 +587,8 @@ class InventoryHistoryDialog(QDialog):
         acciones.addStretch()
 
         boton_cerrar = QPushButton("Cerrar")
-        boton_cerrar.setStyleSheet("background: #2563eb; color: white; padding: 8px 18px; border-radius: 7px; font-weight: 700;")
+        boton_cerrar.setProperty("variant", "ghost")
+        boton_cerrar.setToolTip("Cerrar el historial")
         boton_cerrar.clicked.connect(self.accept)
         acciones.addWidget(boton_cerrar)
         layout.addLayout(acciones)
@@ -560,10 +631,10 @@ class InventoryHistoryDialog(QDialog):
         msg.setWindowTitle("Eliminar Movimiento")
         msg.setIcon(QMessageBox.Question)
         msg.setText("¿Deseas eliminar este movimiento de inventario?")
-        btn_si = msg.addButton("🗑️ Sí, Eliminar", QMessageBox.YesRole)
-        btn_si.setStyleSheet("background-color: #dc2626; color: white; font-weight: 700; padding: 8px 18px; border-radius: 7px; border: none;")
+        btn_si = msg.addButton("Sí, Eliminar", QMessageBox.YesRole)
+        btn_si.setProperty("variant", "danger")
         btn_no = msg.addButton("Cancelar", QMessageBox.NoRole)
-        btn_no.setStyleSheet("background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 8px 18px; border-radius: 7px;")
+        btn_no.setProperty("variant", "ghost")
         msg.exec()
         if msg.clickedButton() == btn_si:
             try:
@@ -592,146 +663,66 @@ class UnifiedInventoryWindow(QWidget):
         self.cargar_todo()
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            * { outline: none; }
-            QWidget { font-family: 'Segoe UI', sans-serif; color: #0f172a; }
-            QLabel { color: #0f172a; border: none; background: transparent; outline: none; }
-            QLabel:focus { border: none; outline: none; }
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                font-weight: 700;
-                font-size: 13px;
-                padding: 9px 15px;
-                border-radius: 8px;
-                min-height: 20px;
-                border: none;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-            QPushButton:disabled { background-color: #e2e8f0; color: #94a3b8; }
-            QMessageBox { background-color: #ffffff; }
-            QMessageBox QLabel { color: #0f172a; font-size: 14px; font-weight: 600; border: none; background: transparent; }
-            QMessageBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 28px;
-            }
-            QMessageBox QPushButton:hover { background-color: #1d4ed8; }
-            QDialogButtonBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 26px;
-            }
-            QDialogButtonBox QPushButton:hover { background-color: #1d4ed8; }
-            QLineEdit {
-                background: white;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 8px 14px;
-                font-size: 13.5px;
-                color: #0f172a;
-            }
-            QLineEdit:focus { border: 2px solid #2563eb; }
-            QTableWidget {
-                background: white;
-                border: 1px solid #cbd5e1;
-                border-radius: 10px;
-                gridline-color: #f1f5f9;
-                font-size: 13.5px;
-                color: #0f172a;
-                outline: none;
-            }
-            QTableWidget::item { padding: 6px; border: none; outline: none; }
-            QTableWidget::item:focus { border: none; outline: none; background: #dbeafe; color: #1e3a8a; }
-            QTableWidget::item:selected { background: #dbeafe; color: #1e3a8a; border: none; outline: none; }
-            QHeaderView::section {
-                background: #f8fafc;
-                color: #0f172a;
-                font-weight: 700;
-                font-size: 13px;
-                border: none;
-                border-bottom: 2px solid #e2e8f0;
-                padding: 10px 8px;
-            }
-        """)
-
+        # Estilo global proveniente de ui/theme.py (GLOBAL_QSS aplicado en app).
+        # Sin stylesheets locales: botones usan variant, etiquetas usan objectName.
         layout = QVBoxLayout(self)
         layout.setSpacing(14)
-        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setContentsMargins(24, 18, 24, 18)
 
         # Fila 1: Encabezado con Tasa
         header_layout = QHBoxLayout()
-        titulo = QLabel("📦 INVENTARIO Y GESTIÓN DE PRODUCTOS")
-        titulo.setStyleSheet("font-size: 21px; font-weight: 800; color: #0f172a; border: none;")
-        header_layout.addWidget(titulo)
+        head_box = QVBoxLayout()
+        head_box.setSpacing(2)
+        titulo = QLabel("INVENTARIO Y GESTIÓN DE PRODUCTOS")
+        titulo.setObjectName("pageTitle")
+        head_sub = QLabel("Crea productos, ajusta existencias y controla precios y stock.")
+        head_sub.setObjectName("pageSubtitle")
+        head_box.addWidget(titulo)
+        head_box.addWidget(head_sub)
+        header_layout.addLayout(head_box)
         header_layout.addStretch()
 
         self.lbl_tasa_info = QLabel("Cargando tasa...")
-        self.lbl_tasa_info.setStyleSheet("background: #eff6ff; color: #1d4ed8; font-weight: 800; font-size: 13.5px; padding: 6px 14px; border-radius: 8px; border: none;")
+        self.lbl_tasa_info.setObjectName("money")
         header_layout.addWidget(self.lbl_tasa_info)
         layout.addLayout(header_layout)
 
         # Fila 2: Barra de Botones de Acción con Colores Vivos y Efectos Hover
         botones_layout = QHBoxLayout()
-        botones_layout.setSpacing(10)
+        botones_layout.setSpacing(12)
 
-        btn_nuevo = QPushButton("➕ Nuevo Producto")
-        btn_nuevo.setStyleSheet("""
-            QPushButton { background: #2563eb; color: white; border: none; }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        btn_nuevo = QPushButton("Nuevo Producto")
+        btn_nuevo.setToolTip("Registrar un producto nuevo")
         btn_nuevo.clicked.connect(self.nuevo_producto)
         botones_layout.addWidget(btn_nuevo)
 
-        btn_modificar = QPushButton("✏️ Modificar")
-        btn_modificar.setStyleSheet("""
-            QPushButton { background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_modificar = QPushButton("Modificar")
+        btn_modificar.setProperty("variant", "ghost")
+        btn_modificar.setToolTip("Editar el producto seleccionado")
         btn_modificar.clicked.connect(self.modificar_producto)
         botones_layout.addWidget(btn_modificar)
 
-        btn_entrada = QPushButton("📥 Entrada Stock")
-        btn_entrada.setStyleSheet("""
-            QPushButton { background: #f0fdf4; color: #15803d; border: 1.5px solid #86efac; }
-            QPushButton:hover { background: #dcfce7; }
-        """)
+        btn_entrada = QPushButton("Entrada Stock")
+        btn_entrada.setProperty("variant", "success")
+        btn_entrada.setToolTip("Sumar existencias al inventario")
         btn_entrada.clicked.connect(self.nueva_entrada)
         botones_layout.addWidget(btn_entrada)
 
-        btn_ajuste = QPushButton("⚖️ Ajuste Stock")
-        btn_ajuste.setStyleSheet("""
-            QPushButton { background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; }
-            QPushButton:hover { background: #fef3c7; }
-        """)
+        btn_ajuste = QPushButton("Ajuste Stock")
+        btn_ajuste.setProperty("variant", "soft")
+        btn_ajuste.setToolTip("Corregir existencias por merma o conteo")
         btn_ajuste.clicked.connect(self.nuevo_ajuste)
         botones_layout.addWidget(btn_ajuste)
 
-        btn_historial = QPushButton("📋 Historial")
-        btn_historial.setStyleSheet("""
-            QPushButton { background: #f8fafc; color: #334155; border: 1.5px solid #cbd5e1; }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_historial = QPushButton("Historial")
+        btn_historial.setProperty("variant", "ghost")
+        btn_historial.setToolTip("Ver movimientos de inventario")
         btn_historial.clicked.connect(self.mostrar_historial)
         botones_layout.addWidget(btn_historial)
 
-        btn_eliminar = QPushButton("🗑️ Eliminar")
-        btn_eliminar.setStyleSheet("""
-            QPushButton { background: #fef2f2; color: #dc2626; border: 1.5px solid #fca5a5; }
-            QPushButton:hover { background: #fee2e2; }
-        """)
+        btn_eliminar = QPushButton("Eliminar")
+        btn_eliminar.setProperty("variant", "danger")
+        btn_eliminar.setToolTip("Eliminar el producto seleccionado")
         btn_eliminar.clicked.connect(self.eliminar_producto)
         botones_layout.addWidget(btn_eliminar)
 
@@ -740,7 +731,7 @@ class UnifiedInventoryWindow(QWidget):
 
         # Fila 3: Barra de Búsqueda Completa (No cortada)
         self.txt_buscar = QLineEdit()
-        self.txt_buscar.setPlaceholderText("🔍 Buscar producto por nombre, código o categoría...")
+        self.txt_buscar.setPlaceholderText("Buscar producto por nombre, código o categoría...")
         self.txt_buscar.setMinimumHeight(38)
         self.txt_buscar.textChanged.connect(self.filtrar_tabla)
         layout.addWidget(self.txt_buscar)
@@ -748,9 +739,9 @@ class UnifiedInventoryWindow(QWidget):
         # Fila 4: Tabla Principal Unificada con Columnas Espaciosas
         self.tabla = QTableWidget()
         self.tabla.verticalHeader().setVisible(False)
-        self.tabla.setColumnCount(5)
+        self.tabla.setColumnCount(7)
         self.tabla.setHorizontalHeaderLabels([
-            "Código", "Producto", "Unidad", "Precio Venta (USD / Bs)", "Stock Disponible"
+            "Código", "Producto", "Categoría", "Proveedor", "Unidad", "Precio Venta (USD / Bs)", "Stock Disponible"
         ])
         self.tabla.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
@@ -759,11 +750,13 @@ class UnifiedInventoryWindow(QWidget):
         self.tabla.verticalHeader().setVisible(False)
 
         # Ajuste de tamaño de columnas
-        self.tabla.setColumnWidth(0, 130)
+        self.tabla.setColumnWidth(0, 110)
         self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.tabla.setColumnWidth(2, 100)
-        self.tabla.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        self.tabla.setColumnWidth(4, 150)
+        self.tabla.setColumnWidth(2, 130)
+        self.tabla.setColumnWidth(3, 130)
+        self.tabla.setColumnWidth(4, 90)
+        self.tabla.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.tabla.setColumnWidth(6, 140)
 
         self.tabla.doubleClicked.connect(self.modificar_producto)
         layout.addWidget(self.tabla)
@@ -774,7 +767,7 @@ class UnifiedInventoryWindow(QWidget):
             row = con.execute("SELECT valor FROM exchange_rates ORDER BY id DESC LIMIT 1").fetchone()
             self.tasa_actual = float(row["valor"]) if row else 0.0
             tasa_str = f"1 USD = {self.tasa_actual:,.2f} Bs" if self.tasa_actual > 0 else "Tasa No configurada"
-            self.lbl_tasa_info.setText(f"💵 Tasa Actual: {tasa_str}")
+            self.lbl_tasa_info.setText(f"Tasa Actual: {tasa_str}")
         finally:
             con.close()
 
@@ -790,7 +783,9 @@ class UnifiedInventoryWindow(QWidget):
             nombre = str(p["nombre"] or "").lower()
             codigo = str(p["codigo"] or "").lower()
             cb = str(p["codigo_barras"] or "").lower() if "codigo_barras" in p.keys() else ""
-            if not busqueda or busqueda in nombre or busqueda in codigo or busqueda in cb:
+            cat = str(p["categoria"] or "").lower() if "categoria" in p.keys() else ""
+            prov = str(p["proveedor"] or "").lower() if "proveedor" in p.keys() else ""
+            if not busqueda or busqueda in nombre or busqueda in codigo or busqueda in cb or busqueda in cat or busqueda in prov:
                 filtrados.append(p)
 
         self.tabla.setRowCount(len(filtrados))
@@ -801,10 +796,14 @@ class UnifiedInventoryWindow(QWidget):
 
             precio_str = f"${precio_usd:,.2f}  (Bs {precio_bs:,.2f})"
             uni_name = p["unidad"] if ("unidad" in p.keys() and p["unidad"]) else "Unidad"
+            cat_name = p["categoria"] if ("categoria" in p.keys() and p["categoria"]) else "Sin categoría"
+            prov_name = p["proveedor"] if ("proveedor" in p.keys() and p["proveedor"]) else "Sin proveedor"
 
             valores = [
                 p["codigo"],
                 p["nombre"],
+                cat_name,
+                prov_name,
                 uni_name,
                 precio_str,
                 f"{stock_act:g}"
@@ -812,10 +811,10 @@ class UnifiedInventoryWindow(QWidget):
 
             for col, val in enumerate(valores):
                 item = QTableWidgetItem(str(val))
-                if col in (2, 4):
+                if col in (4, 6):
                     item.setTextAlignment(Qt.AlignCenter)
-                if col == 4 and stock_act <= 0:
-                    item.setToolTip("⚠️ï¸ Agotado / Sin Stock")
+                if col == 6 and stock_act <= 0:
+                    item.setToolTip("Agotado / Sin Stock")
                     item.setForeground(Qt.red)
                 self.tabla.setItem(fila, col, item)
 
@@ -843,7 +842,8 @@ class UnifiedInventoryWindow(QWidget):
                     stock_inicial=d["stock_inicial"],
                     categoria_id=d["categoria_id"],
                     stock_minimo=d["stock_minimo"],
-                    codigo_barras=d["codigo_barras"]
+                    codigo_barras=d["codigo_barras"],
+                    proveedor_id=d.get("proveedor_id"),
                 )
                 QMessageBox.information(self, "Éxito", f"Producto '{d['nombre']}' registrado correctamente.")
                 self.cargar_todo()
@@ -881,7 +881,9 @@ class UnifiedInventoryWindow(QWidget):
                     precio_usd=d["precio_usd"],
                     stock_minimo=d["stock_minimo"],
                     categoria_id=d["categoria_id"],
-                    codigo_barras=d["codigo_barras"]
+                    codigo_barras=d["codigo_barras"],
+                    proveedor_id=d.get("proveedor_id"),
+                    codigo=d["codigo"],
                 )
                 QMessageBox.information(self, "Éxito", "Producto modificado correctamente.")
                 self.cargar_todo()
@@ -934,10 +936,10 @@ class UnifiedInventoryWindow(QWidget):
         msg.setWindowTitle("Eliminar Producto")
         msg.setIcon(QMessageBox.Question)
         msg.setText(f"¿Estás seguro de eliminar el producto '{p['nombre']}'?")
-        btn_si = msg.addButton("🗑️ï¸ Sí, Eliminar", QMessageBox.YesRole)
-        btn_si.setStyleSheet("background-color: #dc2626; color: white; font-weight: 700; padding: 8px 18px; border-radius: 7px; border: none;")
+        btn_si = msg.addButton("Sí, Eliminar", QMessageBox.YesRole)
+        btn_si.setProperty("variant", "danger")
         btn_no = msg.addButton("Cancelar", QMessageBox.NoRole)
-        btn_no.setStyleSheet("background-color: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 8px 18px; border-radius: 7px;")
+        btn_no.setProperty("variant", "ghost")
         msg.exec()
         if msg.clickedButton() == btn_si:
             delete_product(p["id"])

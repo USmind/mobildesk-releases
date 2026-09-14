@@ -20,63 +20,35 @@ class MixedPaymentDialog(QDialog):
         self.tasa = float(tasa)
         self.datos_resultado = None
 
-        self.setWindowTitle("🔀 Pago Mixto / Fraccionado - MobilDesk POS")
+        self.setWindowTitle("Pago Mixto / Fraccionado - MobilDesk POS")
         self.setFixedSize(540, 560)
         self.crear_interfaz()
         self.recalcular()
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #ffffff;
-                font-family: 'Segoe UI', sans-serif;
-            }
-            QLabel {
-                color: #334155;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 14px;
-                font-weight: 700;
-                color: #0f172a;
-                min-height: 22px;
-            }
-            QLineEdit:focus {
-                border: 2px solid #2563eb;
-            }
-        """)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(14)
 
         # Header
-        lbl_titulo = QLabel("🔀 REGISTRO DE PAGO MIXTO")
-        lbl_titulo.setStyleSheet("font-size: 18px; font-weight: 800; color: #0f172a;")
+        lbl_titulo = QLabel("REGISTRO DE PAGO MIXTO")
+        lbl_titulo.setObjectName("pageTitle")
         layout.addWidget(lbl_titulo)
+        lbl_sub = QLabel("Combina efectivo, divisas y otros métodos hasta cubrir el total.")
+        lbl_sub.setObjectName("pageSubtitle")
+        layout.addWidget(lbl_sub)
 
         # Banner de Total a Pagar
         banner = QFrame()
-        banner.setStyleSheet("""
-            QFrame {
-                background-color: #eff6ff;
-                border: 1.5px solid #bfdbfe;
-                border-radius: 10px;
-            }
-        """)
+        banner.setObjectName("banner")
         b_layout = QHBoxLayout(banner)
-        b_layout.setContentsMargins(14, 10, 14, 10)
+        b_layout.setContentsMargins(18, 14, 18, 14)
+        b_layout.setSpacing(12)
 
         lbl_tot_text = QLabel("TOTAL A PAGAR:")
-        lbl_tot_text.setStyleSheet("font-size: 14px; font-weight: 700; color: #1e3a8a;")
 
         self.lbl_tot_val = QLabel(f"Bs {self.total_bs:,.2f}  (${self.total_usd:,.2f})")
-        self.lbl_tot_val.setStyleSheet("font-size: 16px; font-weight: 900; color: #1e3a8a;")
+        self.lbl_tot_val.setObjectName("money")
 
         b_layout.addWidget(lbl_tot_text)
         b_layout.addStretch()
@@ -85,45 +57,54 @@ class MixedPaymentDialog(QDialog):
 
         # Formulario de Métodos de Pago
         form_card = QFrame()
-        form_card.setStyleSheet("""
-            QFrame {
-                background-color: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-            }
-        """)
+        form_card.setObjectName("card")
         f_layout = QGridLayout(form_card)
-        f_layout.setContentsMargins(16, 14, 16, 14)
+        f_layout.setContentsMargins(18, 18, 18, 18)
         f_layout.setHorizontalSpacing(12)
-        f_layout.setVerticalSpacing(10)
+        f_layout.setVerticalSpacing(12)
+        f_layout.setColumnStretch(1, 1)
+
+        lbl_form = QLabel("DESGLOSE POR MÉTODO")
+        lbl_form.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_form, 0, 0, 1, 3)
 
         # 1. Divisas USD
-        f_layout.addWidget(QLabel("💵 Divisas ($ USD):"), 0, 0)
+        lbl_usd = QLabel("Divisas ($ USD):")
+        lbl_usd.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_usd, 1, 0)
         self.txt_usd = QLineEdit("0.00")
         self.lbl_usd_eq = QLabel("= Bs 0.00")
-        self.lbl_usd_eq.setStyleSheet("color: #2563eb; font-weight: 700; font-size: 12.5px;")
-        f_layout.addWidget(self.txt_usd, 0, 1)
-        f_layout.addWidget(self.lbl_usd_eq, 0, 2)
+        self.lbl_usd_eq.setObjectName("pageSubtitle")
+        f_layout.addWidget(self.txt_usd, 1, 1)
+        f_layout.addWidget(self.lbl_usd_eq, 1, 2)
 
         # 2. Efectivo Bs
-        f_layout.addWidget(QLabel("💵 Efectivo (Bs):"), 1, 0)
+        lbl_bs = QLabel("Efectivo (Bs):")
+        lbl_bs.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_bs, 2, 0)
         self.txt_bs = QLineEdit("0.00")
-        f_layout.addWidget(self.txt_bs, 1, 1, 1, 2)
+        f_layout.addWidget(self.txt_bs, 2, 1, 1, 2)
 
         # 3. Pago Móvil Bs
-        f_layout.addWidget(QLabel("📲 Pago Móvil (Bs):"), 2, 0)
+        lbl_pm = QLabel("Pago Móvil (Bs):")
+        lbl_pm.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_pm, 3, 0)
         self.txt_pago_movil = QLineEdit("0.00")
-        f_layout.addWidget(self.txt_pago_movil, 2, 1, 1, 2)
+        f_layout.addWidget(self.txt_pago_movil, 3, 1, 1, 2)
 
         # 4. Tarjeta / Punto Bs
-        f_layout.addWidget(QLabel("💳 Tarjeta / Punto (Bs):"), 3, 0)
+        lbl_tar = QLabel("Tarjeta / Punto (Bs):")
+        lbl_tar.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_tar, 4, 0)
         self.txt_tarjeta = QLineEdit("0.00")
-        f_layout.addWidget(self.txt_tarjeta, 3, 1, 1, 2)
+        f_layout.addWidget(self.txt_tarjeta, 4, 1, 1, 2)
 
         # 5. Fiado / Crédito Bs
-        f_layout.addWidget(QLabel("🤝 Fiado / Crédito (Bs):"), 4, 0)
+        lbl_fiado = QLabel("Fiado / Crédito (Bs):")
+        lbl_fiado.setObjectName("sectionLabel")
+        f_layout.addWidget(lbl_fiado, 5, 0)
         self.txt_fiado = QLineEdit("0.00")
-        f_layout.addWidget(self.txt_fiado, 4, 1, 1, 2)
+        f_layout.addWidget(self.txt_fiado, 5, 1, 1, 2)
 
         layout.addWidget(form_card)
 
@@ -133,29 +114,26 @@ class MixedPaymentDialog(QDialog):
 
         # Resumen dinámico y estado
         self.status_card = QFrame()
-        self.status_card.setStyleSheet("""
-            QFrame {
-                background-color: #f1f5f9;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 10px;
-            }
-        """)
+        self.status_card.setObjectName("card")
         s_layout = QVBoxLayout(self.status_card)
-        s_layout.setContentsMargins(14, 10, 14, 10)
-        s_layout.setSpacing(6)
+        s_layout.setContentsMargins(18, 14, 18, 14)
+        s_layout.setSpacing(8)
 
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Total Abonado:"))
+        lbl_abonado_titulo = QLabel("Total Abonado:")
+        lbl_abonado_titulo.setObjectName("sectionLabel")
+        row1.addWidget(lbl_abonado_titulo)
         self.lbl_abonado = QLabel("Bs 0.00")
-        self.lbl_abonado.setStyleSheet("font-weight: 800; font-size: 14px; color: #0f172a;")
+        self.lbl_abonado.setObjectName("money")
         row1.addStretch()
         row1.addWidget(self.lbl_abonado)
         s_layout.addLayout(row1)
 
         row2 = QHBoxLayout()
         self.lbl_restante_titulo = QLabel("Resta por Pagar:")
+        self.lbl_restante_titulo.setObjectName("sectionLabel")
         self.lbl_restante = QLabel(f"Bs {self.total_bs:,.2f}")
-        self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #dc2626;")
+        self.lbl_restante.setObjectName("money")
         row2.addWidget(self.lbl_restante_titulo)
         row2.addStretch()
         row2.addWidget(self.lbl_restante)
@@ -168,34 +146,13 @@ class MixedPaymentDialog(QDialog):
         btn_layout.setSpacing(10)
 
         self.btn_cancelar = QPushButton("Cancelar")
-        self.btn_cancelar.setStyleSheet("""
-            QPushButton {
-                background-color: #f1f5f9;
-                color: #334155;
-                font-weight: 700;
-                font-size: 14px;
-                padding: 10px 18px;
-                border-radius: 8px;
-                border: 1.5px solid #cbd5e1;
-            }
-            QPushButton:hover { background-color: #e2e8f0; }
-        """)
+        self.btn_cancelar.setProperty("variant", "ghost")
+        self.btn_cancelar.setToolTip("Cerrar sin guardar el pago")
         self.btn_cancelar.clicked.connect(self.reject)
 
-        self.btn_confirmar = QPushButton("✅ Confirmar Pago Mixto")
-        self.btn_confirmar.setStyleSheet("""
-            QPushButton {
-                background-color: #16a34a;
-                color: #ffffff;
-                font-weight: 800;
-                font-size: 14px;
-                padding: 11px 22px;
-                border-radius: 8px;
-                border: none;
-            }
-            QPushButton:hover { background-color: #15803d; }
-            QPushButton:disabled { background-color: #94a3b8; color: #e2e8f0; }
-        """)
+        self.btn_confirmar = QPushButton("Confirmar Pago Mixto")
+        self.btn_confirmar.setProperty("variant", "success")
+        self.btn_confirmar.setToolTip("Guardar el desglose y volver a la venta")
         self.btn_confirmar.clicked.connect(self.validar_y_guardar)
 
         btn_layout.addWidget(self.btn_cancelar)
@@ -228,13 +185,13 @@ class MixedPaymentDialog(QDialog):
             vuelto_bs = diferencia
             if vuelto_bs > 0:
                 vuelto_usd = vuelto_bs / self.tasa if self.tasa > 0 else 0
-                self.lbl_restante_titulo.setText("🎉 Vuelto a Entregar:")
+                self.lbl_restante_titulo.setText("Vuelto a Entregar:")
                 self.lbl_restante.setText(f"Bs {vuelto_bs:,.2f}  (${vuelto_usd:,.2f})")
-                self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #16a34a;")
+                self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #16A34A;")
             else:
-                self.lbl_restante_titulo.setText("✅ Estado:")
+                self.lbl_restante_titulo.setText("Estado:")
                 self.lbl_restante.setText("¡PAGO EXACTO COMPLETO!")
-                self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #16a34a;")
+                self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #16A34A;")
 
             self.status_card.setStyleSheet("""
                 QFrame {
@@ -249,7 +206,7 @@ class MixedPaymentDialog(QDialog):
             pendiente = abs(diferencia)
             self.lbl_restante_titulo.setText("Resta por Pagar:")
             self.lbl_restante.setText(f"Bs {pendiente:,.2f}")
-            self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #dc2626;")
+            self.lbl_restante.setStyleSheet("font-weight: 900; font-size: 15px; color: #DC2626;")
             self.status_card.setStyleSheet("""
                 QFrame {
                     background-color: #fef2f2;

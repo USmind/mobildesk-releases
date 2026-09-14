@@ -238,7 +238,7 @@ def _queue_initial_snapshot(connection):
     ).fetchall()
     for sale in sales:
         items = connection.execute(
-            """SELECT p.codigo, si.cantidad, si.precio_usd
+            """SELECT p.codigo, p.nombre, si.cantidad, si.precio_usd
                FROM sale_items si JOIN products p ON p.id=si.producto_id
                WHERE si.venta_id=(SELECT id FROM sales WHERE numero_factura=?)""",
             (sale["numero_factura"],),
@@ -255,6 +255,46 @@ def _user_id(connection):
     if row is not None:
         return row["id"]
     return connection.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()["id"]
+
+
+def _get_or_create_category_id(connection, nombre):
+    """Resuelve una categoría por NOMBRE (protocolo sync compartido, aditivo). Vacío -> None."""
+    name = (nombre or "").strip() if isinstance(nombre, str) else ""
+    if not name:
+        return None
+    row = connection.execute("SELECT id FROM categories WHERE nombre=?", (name,)).fetchone()
+    if row:
+        return row["id"]
+    connection.execute("INSERT OR IGNORE INTO categories(nombre, activo) VALUES(?,1)", (name,))
+    row = connection.execute("SELECT id FROM categories WHERE nombre=?", (name,)).fetchone()
+    return row["id"] if row else None
+
+
+def _get_or_create_supplier_id(connection, nombre):
+    """Resuelve un proveedor por NOMBRE (protocolo sync compartido, aditivo). Vacío -> None."""
+    name = (nombre or "").strip() if isinstance(nombre, str) else ""
+    if not name:
+        return None
+    try:
+        row = connection.execute("SELECT id FROM suppliers WHERE nombre=?", (name,)).fetchone()
+    except Exception:
+        return None
+    if row:
+        return row["id"]
+    try:
+        connection.execute("INSERT OR IGNORE INTO suppliers(nombre, activo) VALUES(?,1)", (name,))
+    except Exception:
+        return None
+    row = connection.execute("SELECT id FROM suppliers WHERE nombre=?", (name,)).fetchone()
+    return row["id"] if row else None
+
+
+def _products_has_proveedor(connection):
+    try:
+        cols = {row[1] for row in connection.execute("PRAGMA table_info(products)").fetchall()}
+        return "proveedor_id" in cols
+    except Exception:
+        return False
 
 
 def _apply_remote_event(connection, event):
@@ -310,16 +350,51 @@ def _apply_remote_event(connection, event):
             float(data.get("stock_minimo") or 0),
             int(data.get("activo", 1)),
         )
+        # Protocolo sync compartido (aditivo): categoria/proveedor llegan por NOMBRE.
+        # Si el evento no los trae (app vieja), se preserva lo existente en UPDATE y NULL en INSERT.
+        trae_categoria = "categoria" in data
+        trae_proveedor = "proveedor" in data
+        try:
+            categoria_id = _get_or_create_category_id(connection, data.get("categoria")) if trae_categoria else None
+        except Exception:
+            categoria_id = None
+        try:
+            proveedor_id = _get_or_create_supplier_id(connection, data.get("proveedor")) if trae_proveedor else None
+        except Exception:
+            proveedor_id = None
+        tiene_proveedor = _products_has_proveedor(connection)
         if current:
-            connection.execute(
-                "UPDATE products SET nombre=?, marca=?, unidad=?, precio_usd=?, stock_minimo=?, activo=?, codigo_barras=? WHERE id=?",
-                (*values, codigo_barras, current["id"]),
-            )
+            if trae_categoria or trae_proveedor:
+                sets = ["nombre=?", "marca=?", "unidad=?", "precio_usd=?", "stock_minimo=?", "activo=?", "codigo_barras=?"]
+                params = [*values, codigo_barras]
+                if trae_categoria:
+                    sets.append("categoria_id=?")
+                    params.append(categoria_id)
+                if trae_proveedor and tiene_proveedor:
+                    sets.append("proveedor_id=?")
+                    params.append(proveedor_id)
+                params.append(current["id"])
+                connection.execute(f"UPDATE products SET {', '.join(sets)} WHERE id=?", params)
+            else:
+                connection.execute(
+                    "UPDATE products SET nombre=?, marca=?, unidad=?, precio_usd=?, stock_minimo=?, activo=?, codigo_barras=? WHERE id=?",
+                    (*values, codigo_barras, current["id"]),
+                )
         else:
-            connection.execute(
-                "INSERT INTO products(codigo,codigo_barras,nombre,categoria_id,costo_usd,precio_usd,stock_minimo,activo,marca,unidad) VALUES(?, ?, ?, NULL, 0, ?, ?, ?, ?, ?)",
-                (code, codigo_barras, values[0], values[3], values[4], values[5], values[1], values[2]),
-            )
+            if tiene_proveedor:
+                connection.execute(
+                    "INSERT INTO products(codigo,codigo_barras,nombre,categoria_id,proveedor_id,costo_usd,precio_usd,stock_minimo,activo,marca,unidad) VALUES(?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+                    (code, codigo_barras, values[0], categoria_id, proveedor_id, values[3], values[4], values[5], values[1], values[2]),
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO products(codigo,codigo_barras,nombre,categoria_id,costo_usd,precio_usd,stock_minimo,activo,marca,unidad) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+                    (code, codigo_barras, values[0], categoria_id, values[3], values[4], values[5], values[1], values[2]),
+                )
+    elif kind == "producto_recodificado":
+        # No-op explícito: el PC genera este evento y ya tiene el dato; al recibirlo se ignora.
+        connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (event["id"],))
+        return True
     elif kind == "producto_eliminado":
         connection.execute("UPDATE products SET activo=0 WHERE codigo=?", (data.get("codigo"),))
     elif kind == "movimiento_inventario":
@@ -395,16 +470,27 @@ def _apply_remote_event(connection, event):
     elif kind == "abono_deuda":
         invoice = str(data.get("numero_factura") or "")
         monto_bs = float(data.get("monto_bs") or 0)
+        # Método canónico: la app envía pago_movil; se aceptan variantes.
+        metodo = str(data.get("metodo") or "efectivo").strip().lower()
+        metodo = {"movil": "pago_movil", "móvil": "pago_movil", "tarjeta": "tarjeta",
+                  "divisas": "divisas", "efectivo": "efectivo"}.get(metodo, metodo)
         if invoice and monto_bs > 0:
             sale = connection.execute("SELECT id FROM sales WHERE numero_factura=?", (invoice,)).fetchone()
             if sale:
-                debt = connection.execute("SELECT id, saldo_bs FROM credit_debts WHERE venta_id=?", (sale["id"],)).fetchone()
+                debt = connection.execute("SELECT id, saldo_bs, saldo_usd FROM credit_debts WHERE venta_id=?", (sale["id"],)).fetchone()
                 if debt:
+                    try:
+                        from modules.configuracion.exchange_rate_service import get_current_rate_value
+                        rate = float(get_current_rate_value() or 0)
+                    except Exception:
+                        rate = 0.0
+                    monto_usd = float(data.get("monto_usd") or (monto_bs / rate if rate else 0))
                     new_saldo = max(0.0, float(debt["saldo_bs"]) - monto_bs)
-                    connection.execute("INSERT INTO debt_payments(deuda_id, monto_bs) VALUES(?, ?)", (debt["id"], monto_bs))
+                    new_saldo_usd = max(0.0, float(debt["saldo_usd"] or 0) - monto_usd)
+                    connection.execute("INSERT INTO debt_payments(deuda_id, monto_bs, monto_usd, tasa_pago) VALUES(?,?,?,?)", (debt["id"], monto_bs, monto_usd, rate or None))
                     connection.execute(
-                        "UPDATE credit_debts SET saldo_bs=?, estado=? WHERE id=?",
-                        (new_saldo, "pagada" if new_saldo <= 0 else "pendiente", debt["id"]),
+                        "UPDATE credit_debts SET saldo_bs=?, saldo_usd=?, estado=? WHERE id=?",
+                        (new_saldo, new_saldo_usd, "pagada" if new_saldo <= 0 else "pendiente", debt["id"]),
                     )
 
     connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (event["id"],))

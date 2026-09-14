@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import '../config.dart';
 
 /// Cliente HTTP para plataformas nativas (Android/Windows/iOS).
 Future<String> fetchRaw(String url,
@@ -8,7 +9,7 @@ Future<String> fetchRaw(String url,
     String? body,
     Duration timeout = const Duration(seconds: 15)}) async {
   final client = HttpClient()
-    ..badCertificateCallback = (cert, host, port) => true;
+    ..badCertificateCallback = (cert, host, port) => isDebugMode;
   try {
     final request = await client.openUrl(method, Uri.parse(url)).timeout(timeout);
     headers.forEach(request.headers.set);

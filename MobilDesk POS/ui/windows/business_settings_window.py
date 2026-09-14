@@ -23,63 +23,30 @@ class BusinessSettingsWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Configuración del Negocio")
         self.resize(520, 420)
+        self.setMinimumSize(460, 380)
         self.crear_interfaz()
         self.cargar_datos()
 
     def crear_interfaz(self):
-        self.setStyleSheet("""
-            QWidget { font-family: 'Segoe UI', sans-serif; color: #0f172a; }
-            QLabel { color: #0f172a; border: none; background: transparent; }
-            QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 16px;
-                font-weight: 700;
-                min-height: 22px;
-            }
-            QPushButton:hover { background-color: #1d4ed8; }
-            QPushButton:disabled { background-color: #e2e8f0; color: #94a3b8; }
-            QMessageBox { background-color: #ffffff; }
-            QMessageBox QLabel { color: #0f172a; font-size: 14px; font-weight: 600; border: none; background: transparent; }
-            QMessageBox QPushButton {
-                background-color: #2563eb;
-                color: #ffffff;
-                border: none;
-                border-radius: 7px;
-                padding: 8px 18px;
-                font-size: 13.5px;
-                font-weight: 700;
-                min-width: 80px;
-                min-height: 28px;
-            }
-            QMessageBox QPushButton:hover { background-color: #1d4ed8; }
-            QLineEdit, QTextEdit {
-                background-color: #ffffff;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 7px;
-                padding: 7px 10px;
-                color: #0f172a;
-            }
-            QLineEdit:focus, QTextEdit:focus { border: 2px solid #2563eb; }
-        """)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
 
         title = QLabel("DATOS DEL NEGOCIO")
-        title.setStyleSheet("font-size: 20px; font-weight: 800; color: #0f172a; border: none;")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         subtitle = QLabel(
             "Configura el nombre de tu comercio y los datos de contacto. "
             "Estos datos aparecerán en los tickets, comprobantes y encabezados de MobilDesk."
         )
+        subtitle.setObjectName("pageSubtitle")
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet("color: #64748b; font-size: 13px; border: none;")
         layout.addWidget(subtitle)
+
+        lbl_sec = QLabel("DATOS DEL COMERCIO")
+        lbl_sec.setObjectName("sectionLabel")
+        layout.addWidget(lbl_sec)
 
         form = QFormLayout()
         form.setSpacing(10)
@@ -110,11 +77,13 @@ class BusinessSettingsWindow(QDialog):
 
         botones = QHBoxLayout()
         btn_cancelar = QPushButton("Cancelar")
-        btn_cancelar.setStyleSheet("background: #e2e8f0; color: #334155; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600;")
+        btn_cancelar.setProperty("variant", "ghost")
+        btn_cancelar.setToolTip("Cerrar sin guardar cambios")
         btn_cancelar.clicked.connect(self.reject)
 
-        btn_guardar = QPushButton("💾 Guardar Cambios")
-        btn_guardar.setStyleSheet("background: #2563eb; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 700;")
+        btn_guardar = QPushButton("Guardar Cambios")
+        btn_guardar.setProperty("variant", "success")
+        btn_guardar.setToolTip("Guardar los datos del negocio")
         btn_guardar.clicked.connect(self.guardar)
 
         botones.addStretch()

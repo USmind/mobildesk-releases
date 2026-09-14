@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../theme/design_tokens.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/states.dart';
+import '../utils.dart';
 import 'scanner_screen.dart';
 
 const List<String> kUnidades = [
@@ -50,84 +54,92 @@ class _ProductsScreenState extends State<ProductsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Stock: ${p.nombre}'),
+          shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
+          title: Text('Stock: ${p.nombre}', style: DesignTokens.style('titleLarge')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: DesignTokens.paddingAll('md'),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                    color: DesignTokens.primaryContainer,
+                    borderRadius: DesignTokens.borderRadius('md'),
+                    border: Border.all(color: DesignTokens.primaryLight),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.inventory_2_rounded, color: Color(0xFF1D4ED8)),
-                      const SizedBox(width: 10),
+                      Icon(Icons.inventory_2_rounded, color: DesignTokens.primaryDark),
+                      DesignTokens.spaceMd.width,
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Stock Actual Disponible', style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF))),
+                          Text(
+                            'Stock Actual Disponible',
+                            style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.primaryDark),
+                          ),
                           Text(
                             '${currentStock.toStringAsFixed(2)} ${p.unidad}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                            style: DesignTokens.style('titleMedium').copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: DesignTokens.primaryDark,
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                DesignTokens.spaceMd.height,
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(labelText: 'Tipo de operación', border: OutlineInputBorder()),
+                  value: selectedType,
+                  decoration: InputDecoration(
+                    labelText: 'Tipo de operación',
+                    border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+                  ),
                   items: const [
                     DropdownMenuItem(value: 'entrada', child: Text('📥 Entrada de Stock (+)')),
-                    DropdownMenuItem(value: 'ajuste', child: Text('⚖️ï¸ Ajuste de Stock (+ o -)')),
+                    DropdownMenuItem(value: 'ajuste', child: Text('⚖️ Ajuste de Stock (+ o -)')),
                   ],
-                  onChanged: (val) => setModalState(() {
+                  onChanged: (val) {
                     selectedType = val ?? 'entrada';
                     reason = selectedType == 'entrada' ? 'Entrada de mercancía' : 'Ajuste por conteo físico';
-                  }),
+                  },
                 ),
-                const SizedBox(height: 12),
+                DesignTokens.spaceMd.height,
                 TextField(
                   controller: qtyCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                   decoration: InputDecoration(
                     labelText: selectedType == 'entrada' ? 'Cantidad a ingresar (+)' : 'Cantidad (+ sumar / - restar)',
-                    border: const OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                   ),
                 ),
-                const SizedBox(height: 12),
+                DesignTokens.spaceMd.height,
                 DropdownButtonFormField<String>(
-                  initialValue: reason,
-                  decoration: const InputDecoration(labelText: 'Motivo', border: OutlineInputBorder()),
+                  value: reason,
+                  decoration: InputDecoration(
+                    labelText: 'Motivo',
+                    border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+                  ),
                   items: motives.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                  onChanged: (val) => setModalState(() => reason = val ?? motives.first),
+                  onChanged: (val) => reason = val ?? motives.first,
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             FilledButton(
               onPressed: () {
                 final qty = double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 0;
                 if (qty == 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingresa una cantidad distinta de cero.')),
-                  );
+                  showErrorDialog(context, title: 'Cantidad inválida', message: 'Ingresa una cantidad distinta de cero.');
                   return;
                 }
                 if (selectedType == 'entrada' && qty < 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Una entrada debe ser una cantidad positiva.')),
-                  );
+                  showErrorDialog(context, title: 'Cantidad inválida', message: 'Una entrada debe ser una cantidad positiva.');
                   return;
                 }
 
@@ -140,10 +152,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   'fecha': DateTime.now().toIso8601String(),
                 });
 
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Stock de ${p.nombre} actualizado.')),
-                );
+                Navigator.pop(context);
+                showSuccessDialog(context, title: 'Listo', message: 'Stock de ${p.nombre} actualizado.');
               },
               child: const Text('Guardar'),
             ),
@@ -158,67 +168,66 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (result != null) setState(() {});
   }
 
-
   void _deleteProduct(Product p) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Producto'),
-        content: Text('¿Estás seguro de que deseas eliminar "${p.nombre}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              widget.state.queueEvent('producto_eliminado', {'codigo': p.codigo});
-              Navigator.pop(ctx);
-            },
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
+    showConfirmDialog(
+      context,
+      title: 'Eliminar Producto',
+      message: '¿Estás seguro de que deseas eliminar "${p.nombre}"?',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+    ).then((confirmed) {
+      if (confirmed) {
+        widget.state.queueEvent('producto_eliminado', {'codigo': p.codigo});
+        showSuccessDialog(context, title: 'Eliminado', message: 'Producto "${p.nombre}" eliminado.');
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text.trim().toLowerCase();
     final activeProducts = widget.state.products.values
-        .where((p) => p.activo == 1 && (query.isEmpty || p.nombre.toLowerCase().contains(query) || p.codigo.toLowerCase().contains(query)))
+        .where((p) => p.activo == 1 && (query.isEmpty || p.nombre.toLowerCase().contains(query) || p.codigo.toLowerCase().contains(query) || p.categoria.toLowerCase().contains(query) || p.proveedor.toLowerCase().contains(query)))
         .toList()
       ..sort((a, b) => a.nombre.compareTo(b.nombre));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: DesignTokens.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF172554),
-        foregroundColor: Colors.white,
-        title: const Text('Inventario y Productos', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: DesignTokens.secondary,
+        foregroundColor: DesignTokens.textOnPrimary,
+        title: Text('Inventario y Productos', style: DesignTokens.style('titleLarge').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.textOnPrimary)),
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.white,
+          Card(
+            margin: DesignTokens.paddingAll('md'),
+            elevation: 0,
+            color: DesignTokens.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: DesignTokens.borderRadius('lg'),
+              side: BorderSide(color: DesignTokens.border),
+            ),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre o código...',
-                prefixIcon: const Icon(Icons.search_rounded),
+                prefixIcon: Icon(Icons.search_rounded, color: DesignTokens.primary),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_searchController.text.isNotEmpty)
                       IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: Icon(Icons.clear, color: DesignTokens.textMuted),
                         onPressed: () => setState(() => _searchController.clear()),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF2563EB)),
+                      icon: Icon(Icons.qr_code_scanner_rounded, color: DesignTokens.primary),
                       tooltip: 'Escanear código de barras',
                       onPressed: () async {
-                        final result = await Navigator.push<dynamic>(
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => const ScannerScreen(
@@ -230,30 +239,44 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         if (result != null) {
                           final code = result is String ? result : (result is List && result.isNotEmpty ? result.first.toString() : '');
                           if (code.isNotEmpty) {
-                            setState(() {
-                              _searchController.text = code;
-                            });
+                            setState(() => _searchController.text = code);
                           }
                         }
                       },
                     ),
                   ],
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: DesignTokens.paddingSymmetric(h: 'md', v: 'sm'),
+                border: OutlineInputBorder(
+                  borderRadius: DesignTokens.borderRadius('md'),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: DesignTokens.borderRadius('md'),
+                  borderSide: BorderSide(color: DesignTokens.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: DesignTokens.borderRadius('md'),
+                  borderSide: BorderSide(color: DesignTokens.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: DesignTokens.surfaceVariant,
               ),
             ),
           ),
           Expanded(
             child: activeProducts.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No se encontraron productos.',
-                      style: TextStyle(color: Color(0xFF94A3B8)),
-                    ),
+                ? EmptyState(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No hay productos',
+                    message: query.isEmpty
+                        ? 'Agrega tu primer producto para empezar'
+                        : 'No se encontraron productos con "$query"',
+                    actionLabel: query.isEmpty ? 'Agregar Producto' : null,
+                    onAction: query.isEmpty ? _showProductDialog : null,
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: DesignTokens.paddingAll('md'),
                     itemCount: activeProducts.length,
                     itemBuilder: (ctx, i) {
                       final p = activeProducts[i];
@@ -264,17 +287,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                       return Card(
                         elevation: 0,
-                        margin: const EdgeInsets.only(bottom: 8),
+                        margin: DesignTokens.paddingOnly(bottom: 'sm'),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: isLowStock ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+                          borderRadius: DesignTokens.borderRadius('lg'),
+                          side: BorderSide(
+                            color: isLowStock ? DesignTokens.warningLight : DesignTokens.border,
+                            width: isLowStock ? 1.5 : 1,
+                          ),
                         ),
-                        color: Colors.white,
+                        color: DesignTokens.surface,
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: DesignTokens.borderRadius('lg'),
                           onTap: () => _showStockAdjustDialog(p),
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: DesignTokens.paddingAll('md'),
                             child: Row(
                               children: [
                                 Expanded(
@@ -286,72 +312,76 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           Expanded(
                                             child: Text(
                                               p.nombre,
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              style: DesignTokens.style('titleSmall').copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           if (p.marca.isNotEmpty) ...[
-                                            const SizedBox(width: 6),
+                                            DesignTokens.spaceSm.width,
                                             Text(
                                               '(${p.marca})',
-                                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                                              style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
                                             ),
                                           ],
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      DesignTokens.spaceXs.height,
                                       Text(
-                                        '${p.codigo} · Por ${p.unidad}',
-                                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                        '${p.codigo} · Por ${p.unidad}${p.categoria.isNotEmpty ? ' · ${p.categoria}' : ''}${p.proveedor.isNotEmpty ? ' · Prov: ${p.proveedor}' : ''}',
+                                        style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
                                       ),
-                                      const SizedBox(height: 6),
+                                      DesignTokens.spaceXs.height,
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        padding: DesignTokens.paddingSymmetric(h: 'sm', v: 'xs'),
                                         decoration: BoxDecoration(
-                                          color: isLowStock ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(6),
+                                          color: isLowStock ? DesignTokens.warningContainer : DesignTokens.surfaceVariant,
+                                          borderRadius: DesignTokens.borderRadius('sm'),
                                         ),
                                         child: Text(
-                                          'Stock: ${stock.toStringAsFixed(2)} ${p.unidad} ${isLowStock ? '⚠️ï¸' : ''}',
-                                          style: TextStyle(
-                                            fontSize: 12,
+                                          'Stock: ${stock.toStringAsFixed(2)} ${p.unidad} ${isLowStock ? '⚠' : ''}',
+                                          style: DesignTokens.style('labelSmall').copyWith(
                                             fontWeight: FontWeight.bold,
-                                            color: isLowStock ? const Color(0xFFB45309) : const Color(0xFF475569),
+                                            color: isLowStock ? DesignTokens.warning : DesignTokens.textSecondary,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                DesignTokens.spaceSm.width,
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
                                       'Bs ${_currencyFormat.format(priceBs)}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E3A8A)),
+                                      style: DesignTokens.style('titleMedium').copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: DesignTokens.primaryDark,
+                                      ),
                                     ),
                                     Text(
                                       '\$${_currencyFormat.format(priceUsd)} USD',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
                                     ),
-                                    const SizedBox(height: 4),
+                                    DesignTokens.spaceXs.height,
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
                                           tooltip: 'Ajustar Stock',
-                                          icon: const Icon(Icons.add_box_outlined, size: 20, color: Color(0xFF059669)),
+                                          icon: Icon(Icons.add_box_outlined, size: 20, color: DesignTokens.success),
                                           onPressed: () => _showStockAdjustDialog(p),
                                         ),
                                         IconButton(
                                           tooltip: 'Editar',
-                                          icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF2563EB)),
+                                          icon: Icon(Icons.edit_outlined, size: 20, color: DesignTokens.primary),
                                           onPressed: () => _showProductDialog(p),
                                         ),
                                         IconButton(
                                           tooltip: 'Eliminar',
-                                          icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                          icon: Icon(Icons.delete_outline, size: 20, color: DesignTokens.error),
                                           onPressed: () => _deleteProduct(p),
                                         ),
                                       ],
@@ -366,13 +396,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     },
                   ),
           ),
-        ],
+          ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF2563EB),
-        foregroundColor: Colors.white,
+        backgroundColor: DesignTokens.primary,
+        foregroundColor: DesignTokens.textOnPrimary,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Nuevo Producto'),
+        label: Text('Nuevo Producto', style: DesignTokens.style('labelLarge')),
         onPressed: () => _showProductDialog(),
       ),
     );
@@ -391,6 +421,8 @@ Future<Product?> showProductFormDialog(
   final isEditing = productToEdit != null;
   final nameCtrl = TextEditingController(text: productToEdit?.nombre ?? '');
   final brandCtrl = TextEditingController(text: productToEdit?.marca ?? '');
+  final categoriaCtrl = TextEditingController(text: productToEdit?.categoria ?? '');
+  final proveedorCtrl = TextEditingController(text: productToEdit?.proveedor ?? '');
   final priceCtrl = TextEditingController(text: productToEdit != null ? productToEdit.precioUsd.toString() : '');
   final minStockCtrl = TextEditingController(text: productToEdit != null ? productToEdit.stockMinimo.toString() : '0');
   final initialStockCtrl = TextEditingController(text: '0');
@@ -418,74 +450,90 @@ Future<Product?> showProductFormDialog(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setModalState) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isEditing ? 'Modificar Producto' : 'Nuevo Producto'),
+        shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
+        title: Text(isEditing ? 'Modificar Producto' : 'Nuevo Producto', style: DesignTokens.style('titleLarge')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Nombre del producto *',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
               ),
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
               TextField(
                 controller: brandCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Marca (opcional)',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
               ),
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
+              TextField(
+                controller: categoriaCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Categoría (opcional)',
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+                ),
+              ),
+              DesignTokens.spaceMd.height,
+              TextField(
+                controller: proveedorCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Proveedor (opcional)',
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+                ),
+              ),
+              DesignTokens.spaceMd.height,
               DropdownButtonFormField<String>(
-                initialValue: selectedUnit,
-                decoration: const InputDecoration(
+                value: selectedUnit,
+                decoration: InputDecoration(
                   labelText: 'Unidad de venta',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
                 items: kUnidades.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
                 onChanged: (val) => setModalState(() => selectedUnit = val ?? 'Unidad'),
               ),
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
               TextField(
                 controller: barcodeCtrl,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Código de Barras (será el código del producto)',
                   hintText: 'Escanea o escribe · ej: 7591234567890',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
               ),
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
               TextField(
                 controller: priceCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Precio base en USD (\$)',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
               ),
               if (!isEditing) ...[
-                const SizedBox(height: 10),
+                DesignTokens.spaceMd.height,
                 TextField(
                   controller: initialStockCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Stock Inicial (Existencia actual)',
                     hintText: '0 para empezar sin inventario',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
+              DesignTokens.spaceMd.height,
               TextField(
                 controller: minStockCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Stock mínimo para alertas',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
                 ),
               ),
             ],
@@ -504,9 +552,7 @@ Future<Product?> showProductFormDialog(
               final initStock = double.tryParse(initialStockCtrl.text.replaceAll(',', '.')) ?? 0;
 
               if (name.isEmpty || price <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ingresa nombre y un precio mayor a cero.')),
-                );
+                showErrorDialog(context, title: 'Datos incompletos', message: 'Ingresa nombre y un precio mayor a cero.');
                 return;
               }
 
@@ -525,6 +571,8 @@ Future<Product?> showProductFormDialog(
                 'codigo_barras': barcodeText.isNotEmpty ? barcodeText : code,
                 'nombre': name,
                 'marca': brandCtrl.text.trim(),
+                'categoria': categoriaCtrl.text.trim(),
+                'proveedor': proveedorCtrl.text.trim(),
                 'unidad': selectedUnit,
                 'precio_usd': price,
                 'stock_minimo': minStock,
@@ -549,16 +597,16 @@ Future<Product?> showProductFormDialog(
                 codigoBarras: barcodeText.isNotEmpty ? barcodeText : code,
                 nombre: name,
                 marca: brandCtrl.text.trim(),
+                categoria: categoriaCtrl.text.trim(),
+                proveedor: proveedorCtrl.text.trim(),
                 unidad: selectedUnit,
                 precioUsd: price,
                 stockMinimo: minStock,
                 activo: 1,
               );
 
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Producto $name guardado correctamente.')),
-              );
+              Navigator.pop(context);
+              showSuccessDialog(context, title: 'Guardado', message: 'Producto $name guardado correctamente.');
             },
             child: const Text('Guardar'),
           ),

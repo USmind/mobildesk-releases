@@ -6,6 +6,7 @@ import 'products_screen.dart';
 import 'sales_history_screen.dart';
 import 'settings_screen.dart';
 import 'license_blocked_screen.dart';
+import '../theme/design_tokens.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final AppState state;
@@ -24,61 +25,69 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.state,
-      builder: (context, _) {
-        // Bloqueo de licencia: identico al programa de PC.
-        if (widget.state.licenciaBloqueada) {
-          return LicenseBlockedScreen(state: widget.state);
-        }
-        return _buildMainScaffold();
-      },
-    );
+  Widget _buildScreen() {
+    if (widget.state.licenciaBloqueada) {
+      return LicenseBlockedScreen(state: widget.state);
+    }
+    switch (_currentIndex) {
+      case 0:
+        return DashboardScreen(state: widget.state, onNavigateTab: _onNavigateTab);
+      case 1:
+        return PosScreen(state: widget.state);
+      case 2:
+        return ProductsScreen(state: widget.state);
+      case 3:
+        return SalesHistoryScreen(
+          state: widget.state,
+          onFiarMas: (clientName) {
+            widget.state.clienteParaFiar = clientName;
+            _onNavigateTab(1);
+          },
+        );
+      case 4:
+        return SettingsScreen(state: widget.state);
+      default:
+        return DashboardScreen(state: widget.state, onNavigateTab: _onNavigateTab);
+    }
   }
 
-  Widget _buildMainScaffold() {
-    final screens = [
-      DashboardScreen(state: widget.state, onNavigateTab: _onNavigateTab),
-      PosScreen(state: widget.state),
-      ProductsScreen(state: widget.state),
-      SalesHistoryScreen(state: widget.state),
-      SettingsScreen(state: widget.state),
-    ];
-
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: screens[_currentIndex],
+      body: ListenableBuilder(
+        listenable: widget.state,
+        builder: (context, _) => _buildScreen(),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        backgroundColor: Colors.white,
-        elevation: 4,
-        indicatorColor: const Color(0xFFDBEAFE),
+        backgroundColor: DesignTokens.surface,
+        elevation: 0,
+        indicatorColor: DesignTokens.primaryContainer,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded, color: Color(0xFF1D4ED8)),
+            selectedIcon: Icon(Icons.home_rounded, color: DesignTokens.primaryDark),
             label: 'Inicio',
           ),
           NavigationDestination(
             icon: Icon(Icons.point_of_sale_outlined),
-            selectedIcon: Icon(Icons.point_of_sale_rounded, color: Color(0xFF1D4ED8)),
+            selectedIcon: Icon(Icons.point_of_sale_rounded, color: DesignTokens.primaryDark),
             label: 'Vender',
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2_rounded, color: Color(0xFF1D4ED8)),
+            selectedIcon: Icon(Icons.inventory_2_rounded, color: DesignTokens.primaryDark),
             label: 'Inventario',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long_rounded, color: Color(0xFF1D4ED8)),
+            selectedIcon: Icon(Icons.receipt_long_rounded, color: DesignTokens.primaryDark),
             label: 'Ventas',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded, color: Color(0xFF1D4ED8)),
+            selectedIcon: Icon(Icons.settings_rounded, color: DesignTokens.primaryDark),
             label: 'Ajustes',
           ),
         ],

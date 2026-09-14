@@ -6,9 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'net_stub.dart';
-
-const String kSupabaseUrl = 'https://atxeuhqhariymdqsbmpd.supabase.co';
-const String kSupabaseKey = 'sb_publishable_6a_o_Jv_XhqZE9TP7mO2EA_gOeak-mL';
+import 'bcv_service.dart';
+import '../config.dart';
 
 String toValidUuid(String text) {
   final trimmed = text.trim().toLowerCase();
@@ -49,6 +48,13 @@ class AppState extends ChangeNotifier {
   DateTime? firstInstall;
 
   Timer? _autoSyncTimer;
+  Timer? _bcvAutoTimer;
+  String? lastBcvUpdate;
+
+  /// Cliente elegido desde Cobrar/Fiados para fiarle más.
+  /// La pantalla Vender lo consume al abrirse (pone el nombre y método fiado).
+  /// Es transitorio: no se persiste ni se sincroniza.
+  String? clienteParaFiar;
 
   bool get isAuthenticated => (businessId != null && businessId!.trim().isNotEmpty);
 
@@ -109,6 +115,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _autoSyncTimer?.cancel();
+    _bcvAutoTimer?.cancel();
     super.dispose();
   }
 
@@ -164,10 +171,19 @@ class AppState extends ChangeNotifier {
     }
 
     _autoSyncTimer?.cancel();
-    _autoSyncTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    // Sync cada 30-60 segundos con jitter para evitar picos de conexión simultáneos
+    final baseInterval = 30 + Random().nextInt(30);
+    _autoSyncTimer = Timer.periodic(Duration(seconds: baseInterval), (_) {
       if (isAuthenticated && !isSyncing) {
         sync();
       }
+    });
+
+    // Auto-fetch tasa BCV al inicio y cada hora
+    fetchBcvRateAndUpdate();
+    _bcvAutoTimer?.cancel();
+    _bcvAutoTimer = Timer.periodic(const Duration(hours: 1), (_) {
+      fetchBcvRateAndUpdate();
     });
 
     notifyListeners();
@@ -238,6 +254,29 @@ class AppState extends ChangeNotifier {
     sync();
   }
 
+  /// Obtiene la tasa BCV automáticamente y la aplica al sistema.
+  /// No lanza excepciones: sin internet simplemente no hace nada.
+  Future<void> fetchBcvRateAndUpdate() async {
+    try {
+      final result = await fetchBcvRate();
+      if (result != null && result.rate > 0) {
+        final oldRate = exchangeRate;
+        exchangeRate = result.rate;
+        lastBcvUpdate = result.date;
+        if (oldRate != result.rate) {
+          queueEvent('tasa_cambio_actualizada', {
+            'tasa': exchangeRate,
+            'margen': profitMargin,
+          });
+          save();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('BCV fetch sin conexión: $e');
+    }
+  }
+
   void updateSettings({String? name, double? rate, double? margin, String? customBusinessId}) {
     if (name != null && name.trim().isNotEmpty) {
       businessName = name.trim();
@@ -266,7 +305,7 @@ class AppState extends ChangeNotifier {
     sync();
   }
 
-  void recordDebtPayment(String saleId, double amountPaid) {
+  void recordDebtPayment(String saleId, double amountPaid, {String? metodo, double? montoUsd}) {
     final idx = sales.indexWhere((s) => s.id == saleId);
     if (idx >= 0) {
       final old = sales[idx];
@@ -287,14 +326,18 @@ class AppState extends ChangeNotifier {
         saldoPendiente: newBalance,
         fecha: old.fecha,
         productos: old.productos,
+        pagosDetalle: old.pagosDetalle,
       );
 
-      queueEvent('abono_deuda', {
+      final datosAbono = <String, dynamic>{
         'numero_factura': old.numeroFactura,
         'cliente_nombre': old.clienteNombre,
         'monto_bs': amountPaid,
         'saldo_restante_bs': newBalance,
-      });
+      };
+      if (metodo != null && metodo.isNotEmpty) datosAbono['metodo'] = metodo;
+      if (montoUsd != null) datosAbono['monto_usd'] = montoUsd;
+      queueEvent('abono_deuda', datosAbono);
 
       save();
       notifyListeners();
@@ -332,6 +375,30 @@ class AppState extends ChangeNotifier {
       final p = Product.fromMap(datos);
       if (p.codigo.isNotEmpty) {
         products[p.codigo] = p;
+      }
+    } else if (tipo == 'producto_recodificado') {
+      final codigoAnterior = datos['codigo_anterior']?.toString() ?? '';
+      final rawProd = datos['producto'];
+      if (codigoAnterior.isNotEmpty && rawProd is Map) {
+        final nuevo = Product.fromMap(Map<String, dynamic>.from(rawProd));
+        if (nuevo.codigo.isNotEmpty) {
+          products.remove(codigoAnterior);
+          for (var i = 0; i < movements.length; i++) {
+            final m = movements[i];
+            if (m.productoCodigo == codigoAnterior) {
+              movements[i] = InventoryMovement(
+                id: m.id,
+                productoCodigo: nuevo.codigo,
+                tipo: m.tipo,
+                cantidad: m.cantidad,
+                costoUsd: m.costoUsd,
+                motivo: m.motivo,
+                fecha: m.fecha,
+              );
+            }
+          }
+          products[nuevo.codigo] = nuevo;
+        }
       }
     } else if (tipo == 'producto_eliminado') {
       final code = datos['codigo']?.toString();
@@ -394,6 +461,7 @@ class AppState extends ChangeNotifier {
           saldoPendiente: newBalance,
           fecha: old.fecha,
           productos: old.productos,
+          pagosDetalle: old.pagosDetalle,
         );
       }
     }
@@ -437,31 +505,9 @@ class AppState extends ChangeNotifier {
         null,
       );
     } catch (loginErr) {
-      final newBusinessId = 'negocio-${Random().nextInt(999999)}';
-      try {
-        final signupRes = await _rawApi(
-          '/auth/v1/signup',
-          'POST',
-          {
-            'email': inputEmail,
-            'password': password,
-            'data': {'negocio_id': newBusinessId},
-          },
-          null,
-        );
-        if (signupRes['session'] != null) {
-          sessionData = signupRes['session'];
-        } else {
-          sessionData = await _rawApi(
-            '/auth/v1/token?grant_type=password',
-            'POST',
-            {'email': inputEmail, 'password': password},
-            null,
-          );
-        }
-      } catch (signupErr) {
-        throw 'Error al autenticar con correo ($loginErr). Tip: Puedes usar la opción de "Enlazar con Código de Negocio" que es instantánea.';
-      }
+      // NO auto-crear usuario (signup) en login fallido.
+      // El usuario debe usar "Enlazar con Código de Negocio" para vincular un negocio existente.
+      throw 'Correo o contraseña incorrectos. Si es tu primer acceso, usa "Enlazar con Código de Negocio".';
     }
 
     token = sessionData['access_token']?.toString();
@@ -548,21 +594,35 @@ class AppState extends ChangeNotifier {
         outbox.removeWhere((e) => e['id'] == event['id']);
       }
 
-      // 2. Descargar todos los eventos del negocio
-      final remoteEvents = await _authenticatedApi(
-        '/rest/v1/kiosko_sync_events?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid&order=creado_en.asc',
-        'GET',
-      );
+      // 2. Descargar eventos del negocio CON PAGINACIÓN (100 por página)
+      // Evita descargar todo el historial de una vez y timeouts.
+      const pageSize = 100;
+      int offset = 0;
+      bool hasMore = true;
 
-      if (remoteEvents is List) {
-        for (final item in remoteEvents) {
-          final eventMap = Map<String, dynamic>.from(item);
-          final eventId = eventMap['id']?.toString() ?? '';
-          if (seenEvents.add(eventId)) {
-            final tipo = eventMap['tipo']?.toString() ?? '';
-            final datos = Map<String, dynamic>.from(eventMap['datos'] ?? {});
-            applyLocalEvent(tipo, datos, eventId);
+      while (hasMore) {
+        final remoteEvents = await _authenticatedApi(
+          '/rest/v1/kiosko_sync_events?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid&order=creado_en.asc&limit=$pageSize&offset=$offset',
+          'GET',
+        );
+
+        if (remoteEvents is List && remoteEvents.isNotEmpty) {
+          for (final item in remoteEvents) {
+            final eventMap = Map<String, dynamic>.from(item);
+            final eventId = eventMap['id']?.toString() ?? '';
+            if (seenEvents.add(eventId)) {
+              final tipo = eventMap['tipo']?.toString() ?? '';
+              final datos = Map<String, dynamic>.from(eventMap['datos'] ?? {});
+              applyLocalEvent(tipo, datos, eventId);
+            }
           }
+          if (remoteEvents.length < pageSize) {
+            hasMore = false;
+          } else {
+            offset += pageSize;
+          }
+        } else {
+          hasMore = false;
         }
       }
 
@@ -660,7 +720,7 @@ class AppState extends ChangeNotifier {
   Future<Map<String, dynamic>?> checkAppUpdate() async {
     try {
       final text = await fetchRaw(
-        'https://raw.githubusercontent.com/USmind/mobildesk-releases/main/version.json',
+        kVersionJsonUrl,
         timeout: const Duration(seconds: 10),
       );
       return jsonDecode(text) as Map<String, dynamic>;

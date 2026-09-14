@@ -19,6 +19,7 @@ class TicketPreviewDialog(QDialog):
         self.sale_id_or_invoice = sale_id_or_invoice
         self.setWindowTitle("Comprobante de Venta")
         self.resize(460, 620)
+        self.setMinimumSize(400, 500)
         self.ticket_text = ""
         self.ticket_html = ""
         self.crear_interfaz()
@@ -26,41 +27,36 @@ class TicketPreviewDialog(QDialog):
 
     def crear_interfaz(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(12)
 
         titulo = QLabel("VISTA PREVIA DEL TICKET")
-        titulo.setStyleSheet("font-size: 17px; font-weight: 700; color: #172554;")
+        titulo.setObjectName("pageTitle")
         layout.addWidget(titulo)
+        sub = QLabel("Revisa el comprobante antes de imprimirlo o guardarlo.")
+        sub.setObjectName("pageSubtitle")
+        layout.addWidget(sub)
 
         self.visor = QTextEdit()
         self.visor.setReadOnly(True)
         font = QFont("Courier New", 10)
         self.visor.setFont(font)
-        self.visor.setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px;")
         layout.addWidget(self.visor)
 
         acciones = QHBoxLayout()
 
-        btn_imprimir = QPushButton("🖨️ Imprimir Ticket")
-        btn_imprimir.setStyleSheet("""
-            QPushButton { background: #2563eb; color: white; font-weight: 700; padding: 9px 18px; border-radius: 7px; border: none; }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
+        btn_imprimir = QPushButton("Imprimir Ticket")
+        btn_imprimir.setToolTip("Enviar el ticket a la impresora")
         btn_imprimir.clicked.connect(self.imprimir)
 
-        btn_guardar = QPushButton("💾 Guardar TXT")
-        btn_guardar.setStyleSheet("""
-            QPushButton { background: #0f766e; color: white; font-weight: 700; padding: 9px 16px; border-radius: 7px; border: none; }
-            QPushButton:hover { background: #115e59; }
-        """)
+        btn_guardar = QPushButton("Guardar TXT")
+        btn_guardar.setProperty("variant", "soft")
+        btn_guardar.setToolTip("Guardar el ticket en un archivo de texto")
         btn_guardar.clicked.connect(self.guardar_txt)
 
         btn_cerrar = QPushButton("Cerrar")
-        btn_cerrar.setStyleSheet("""
-            QPushButton { background: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; font-weight: 700; padding: 9px 16px; border-radius: 7px; }
-            QPushButton:hover { background: #e2e8f0; }
-        """)
+        btn_cerrar.setProperty("variant", "ghost")
+        btn_cerrar.setToolTip("Cerrar la vista previa")
         btn_cerrar.clicked.connect(self.accept)
 
         acciones.addWidget(btn_imprimir)

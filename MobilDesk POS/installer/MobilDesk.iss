@@ -1,5 +1,5 @@
 #define MyAppName "MobilDesk POS"
-#define MyAppVersion "2.0.20"
+#define MyAppVersion "2.0.26"
 #define MyAppPublisher "MobilDesk POS Systems"
 #define MyAppExeName "MobilDesk.exe"
 
@@ -37,6 +37,13 @@ Name: "quicklaunchicon"; Description: "Crear un acceso directo en Inicio Rápido
 [Files]
 Source: "..\package\MobilDesk\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 Source: "..\manual\Manual-MobilDesk.html"; DestDir: "{app}\manual"; Flags: ignoreversion
+
+; Limpieza total antes de instalar: evita mezclar DLLs viejas con nuevas
+; (causaba "DLL load failed while importing QtWidgets"). La base de datos
+; vive en LOCALAPPDATA y no se toca.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\MobilDesk.exe"
 
 [Icons]
 Name: "{autoprograms}\MobilDesk POS"; Filename: "{app}\{#MyAppExeName}"

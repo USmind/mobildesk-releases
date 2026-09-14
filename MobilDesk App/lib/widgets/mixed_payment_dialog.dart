@@ -140,11 +140,14 @@ class _MixedPaymentDialogState extends State<MixedPaymentDialog> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 28),
-                  const SizedBox(width: 12),
-                  const Text(
-                    '🔀 PAGO MIXTO / FRACCIONADO',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Pago Mixto',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
