@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import 'net_stub.dart';
 import 'bcv_service.dart';
@@ -727,6 +730,95 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error al verificar actualización: $e');
       return null;
+    }
+  }
+
+  /// Compara dos strings de versión (ej: "1.2.6" vs "1.2.7"). Retorna true si remote es más nueva.
+  static bool _isNewerVersion(String remote, String current) {
+    try {
+      final rParts = remote.split('.').map(int.parse).toList();
+      final cParts = current.split('.').map(int.parse).toList();
+      for (var i = 0; i < max(rParts.length, cParts.length); i++) {
+        final r = i < rParts.length ? rParts[i] : 0;
+        final c = i < cParts.length ? cParts[i] : 0;
+        if (r > c) return true;
+        if (r < c) return false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Retorna la versión actual instalada de la app.
+  Future<String> getCurrentVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    return info.version;
+  }
+
+  /// Verifica si hay una actualización disponible. Retorna info de la update o null.
+  Future<Map<String, dynamic>?> checkForUpdate() async {
+    final remote = await checkAppUpdate();
+    if (remote == null) return null;
+    final remoteVersion = (remote['android_version'] ?? remote['version'] ?? '').toString().trim();
+    if (remoteVersion.isEmpty) return null;
+    final currentVersion = await getCurrentVersion();
+    if (!_isNewerVersion(remoteVersion, currentVersion)) return null;
+    return {
+      'version': remoteVersion,
+      'download_url': remote['android_download_url'] ?? remote['download_url'] ?? '',
+      'changelog': remote['changelog'] ?? 'Mejoras de rendimiento y estabilidad.',
+      'current_version': currentVersion,
+    };
+  }
+
+  /// Descarga el APK a la caché de la app y retorna la ruta del archivo.
+  Future<String?> downloadApk(String url, void Function(double percent, int downloaded, int total)? onProgress) async {
+    try {
+      final dir = Directory('${Directory.current.path}/update_cache');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final filePath = '${dir.path}/MobilDesk_Update.apk';
+      final file = File(filePath);
+
+      final client = HttpClient();
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      final totalSize = response.contentLength > 0 ? response.contentLength : 0;
+      var bytesDown = 0;
+
+      final sink = file.openWrite();
+      await for (final chunk in response) {
+        sink.add(chunk);
+        bytesDown += chunk.length;
+        if (onProgress != null && totalSize > 0) {
+          onProgress(bytesDown / totalSize, bytesDown, totalSize);
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      client.close();
+
+      if (await file.exists() && await file.length() > 5000) {
+        return filePath;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error descargando APK: $e');
+      return null;
+    }
+  }
+
+  /// Abre el APK con el instalador del sistema Android.
+  Future<bool> openApkForInstall(String filePath) async {
+    try {
+      final uri = Uri.file(filePath);
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error abriendo APK: $e');
+      return false;
     }
   }
 }

@@ -155,25 +155,6 @@ class LoginWindow(QWidget):
 
         set_user(user)
 
-        # Verificación rápida de actualización al iniciar sesión
-        try:
-            from modules.actualizador.update_service import check_remote_version
-            from ui.windows.update_dialog import AutoUpdateModalDialog
-            from PySide6.QtWidgets import QDialog
-
-            info = check_remote_version()
-            if info and info.get("download_url"):
-                dialog = AutoUpdateModalDialog(
-                    version=info["version"],
-                    download_url=info["download_url"],
-                    changelog=info.get("changelog", ""),
-                    parent=self,
-                )
-                # Si se ejecuta la actualización, dialog.exec() cerrará la app para reiniciar
-                dialog.exec()
-        except Exception as e:
-            print(f"Aviso en verificación de actualización: {e}")
-
         self.dashboard = DashboardWindow()
         self.dashboard.show()
         self.close()

@@ -73,7 +73,7 @@ class DashboardWindow(QMainWindow):
             QTimer.singleShot(500, lambda: WelcomeTourDialog(self, self.nombre_negocio).exec())
 
         # Iniciar comprobación silenciosa de actualizaciones en segundo plano
-        QTimer.singleShot(7000, self.iniciar_verificacion_actualizacion)
+        QTimer.singleShot(2000, self.iniciar_verificacion_actualizacion)
 
         self.sync_timer = QTimer(self)
         self.sync_timer.setInterval(20000)
@@ -95,33 +95,33 @@ class DashboardWindow(QMainWindow):
         if self.btn_update_badge is not None:
             return
 
-        self.btn_update_badge = QPushButton(f"¡Actualización v{version} lista!")
+        self._update_installer_path = installer_path
+        self._update_countdown = 15
+
+        self.btn_update_badge = QPushButton(f"  Actualización v{version} lista — Reiniciando en {self._update_countdown}s  ")
         self.btn_update_badge.setProperty("variant", "success")
-        self.btn_update_badge.setToolTip("Ver detalles e instalar la actualización")
-        self.btn_update_badge.clicked.connect(lambda: self.preguntar_y_aplicar_actualizacion(version, installer_path, changelog))
+        self.btn_update_badge.setToolTip(f"{changelog}\n\nHaz clic para reiniciar ahora")
+        self.btn_update_badge.clicked.connect(lambda: self._aplicar_actualizacion_inmediata())
         self.header_pos.insertWidget(self.header_pos.count() - 1, self.btn_update_badge)
 
-    def preguntar_y_aplicar_actualizacion(self, version, installer_path, changelog):
-        msg = QMessageBox(self)
-        msg.setWindowTitle(f"Actualización Disponible (v{version})")
-        msg.setIcon(QMessageBox.Information)
-        msg.setText(
-            f"<h3>Nueva versión de MobilDesk POS lista para instalar!</h3>"
-            f"<p><b>Versión disponible:</b> v{version} (Actual: v{CURRENT_VERSION})</p>"
-            f"<p><b>Novedades / Mejoras:</b><br>{changelog}</p>"
-            f"<hr>"
-            f"<p>¿Deseas reiniciar y aplicar la actualización ahora mismo?<br>"
-            f"El sistema se cerrará, se actualizará en 10 segundos y se volverá a abrir solo.<br>"
-            f"<b>Todos tus productos, ventas y configuraciones se conservarán 100% intactos.</b></p>"
-        )
-        btn_si = msg.addButton("Sí, Actualizar Ahora (10s)", QMessageBox.YesRole)
-        btn_si.setProperty("variant", "success")
-        btn_no = msg.addButton("Más Tarde", QMessageBox.NoRole)
-        btn_no.setProperty("variant", "ghost")
+        self._countdown_timer = QTimer(self)
+        self._countdown_timer.timeout.connect(lambda: self._tick_countdown(version))
+        self._countdown_timer.start(1000)
 
-        msg.exec()
-        if msg.clickedButton() == btn_si:
-            ok = apply_update_and_restart(installer_path)
+    def _tick_countdown(self, version):
+        self._update_countdown -= 1
+        if self._update_countdown <= 0:
+            self._countdown_timer.stop()
+            self._aplicar_actualizacion_inmediata()
+            return
+        self.btn_update_badge.setText(f"  Actualización v{version} lista — Reiniciando en {self._update_countdown}s  ")
+
+    def _aplicar_actualizacion_inmediata(self):
+        if hasattr(self, "_countdown_timer") and self._countdown_timer:
+            self._countdown_timer.stop()
+        installer = getattr(self, "_update_installer_path", None)
+        if installer:
+            ok = apply_update_and_restart(installer)
             if ok:
                 from PySide6.QtWidgets import QApplication
                 QApplication.quit()

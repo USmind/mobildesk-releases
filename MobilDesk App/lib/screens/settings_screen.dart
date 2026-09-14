@@ -56,6 +56,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _checkForUpdate() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Buscando actualizaciones...')),
+    );
+    final info = await widget.state.checkForUpdate();
+    if (!mounted) return;
+    if (info == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu app está actualizada.')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Nueva versión v${info['version']}'),
+        content: Text(
+          'Versión actual: v${info['current_version']}\n\n'
+          'Novedades:\n${info['changelog']}\n\n'
+          'Se descargará el APK y el sistema te pedirá instalarlo.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Descargar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    String? apkPath;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          widget.state.downloadApk(info['download_url'], (percent, downloaded, total) {
+            setDialogState(() {});
+          }).then((path) {
+            apkPath = path;
+            if (ctx.mounted) Navigator.pop(ctx);
+          });
+          return AlertDialog(
+            title: const Text('Descargando actualización...'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const LinearProgressIndicator(),
+                const SizedBox(height: 12),
+                Text('Descargando APK...', style: DesignTokens.style('bodySmall')),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (!mounted) return;
+    if (apkPath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al descargar la actualización.')),
+        );
+      }
+      return;
+    }
+
+    final opened = await widget.state.openApkForInstall(apkPath!);
+    if (!mounted) return;
+    if (!opened) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el instalador. Instala el APK manualmente.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
@@ -188,6 +265,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 4),
           Text('Sincronizada con el programa de la PC.', style: DesignTokens.style('labelSmall').copyWith(color: DesignTokens.textMuted)),
+          const SizedBox(height: 24),
+
+          _sectionTitle('Actualizar App', Icons.system_update_rounded),
+          const SizedBox(height: 8),
+          Text(
+            'Busca nuevas versiones de MobilDesk en el servidor.',
+            style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+          ),
+          const SizedBox(height: 12),
+          _fullButton('Buscar Actualizaciones', Icons.download_rounded, DesignTokens.primary, _checkForUpdate),
           const SizedBox(height: 24),
 
           _sectionTitle('Cerrar Sesión', Icons.logout_rounded),
