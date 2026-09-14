@@ -1,0 +1,7 @@
+{
+  "version": "2.0.26",
+  "android_version": "1.2.7",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.26/Instalar-MobilDesk-v2.0.26.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.26/MobilDesk-v1.2.7.apk",
+  "changelog": "Fiados unificados, buscador de productos simplificado, fix numero_factura, cliente dedup, auto-actualización."
+}
