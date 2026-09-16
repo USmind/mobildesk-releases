@@ -40,15 +40,18 @@ def check_remote_version():
 
     # 1. Intentar primero con version.json directo (más rápido y sin límites de API)
     try:
-        req = urllib.request.Request(VERSION_JSON_URL, headers=headers)
+        bust_url = VERSION_JSON_URL + f"?t={int(__import__('time').time())}"
+        req = urllib.request.Request(bust_url, headers=headers)
         with urllib.request.urlopen(req, timeout=6) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode("utf-8"))
-                remote_v = data.get("version", "").strip()
+                # Soporta version.json con pc_version / android_version separados
+                remote_v = (data.get("pc_version") or data.get("version") or "").strip()
+                dl_url = (data.get("pc_download_url") or data.get("download_url") or "").strip()
                 if remote_v and is_newer_version(remote_v):
                     return {
                         "version": remote_v,
-                        "download_url": data.get("download_url", ""),
+                        "download_url": dl_url,
                         "changelog": data.get("changelog", "Mejoras de rendimiento y estabilidad."),
                     }
                 return None

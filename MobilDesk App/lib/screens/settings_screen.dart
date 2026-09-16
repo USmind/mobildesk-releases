@@ -71,11 +71,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Nueva versión v${info['version']}'),
+        title: Text('Actualización disponible: v${info['version']}'),
         content: Text(
-          'Versión actual: v${info['current_version']}\n\n'
-          'Novedades:\n${info['changelog']}\n\n'
-          'Se descargará el APK y el sistema te pedirá instalarlo.',
+          'Versión instalada: ${info['current_version']}\n\n'
+          '${info['changelog']}\n\n'
+          '¿Descargar e instalar ahora?',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),

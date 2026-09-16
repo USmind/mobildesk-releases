@@ -4,7 +4,9 @@ import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
@@ -722,8 +724,9 @@ class AppState extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> checkAppUpdate() async {
     try {
+      final bust = kVersionJsonUrl.contains('?') ? '&t=${DateTime.now().millisecondsSinceEpoch}' : '?t=${DateTime.now().millisecondsSinceEpoch}';
       final text = await fetchRaw(
-        kVersionJsonUrl,
+        '$kVersionJsonUrl$bust',
         timeout: const Duration(seconds: 10),
       );
       return jsonDecode(text) as Map<String, dynamic>;
@@ -733,11 +736,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Compara dos strings de versión (ej: "1.2.6" vs "1.2.7"). Retorna true si remote es más nueva.
+  /// Compara dos strings de versión (ej: "v1.2.6" vs "1.2.7"). Retorna true si remote es más nueva.
   static bool _isNewerVersion(String remote, String current) {
     try {
-      final rParts = remote.split('.').map(int.parse).toList();
-      final cParts = current.split('.').map(int.parse).toList();
+      String clean(String v) => v.trim().toLowerCase().replaceAll(RegExp(r'^v'), '');
+      final rParts = clean(remote).split('.').map((s) => int.tryParse(s) ?? 0).toList();
+      final cParts = clean(current).split('.').map((s) => int.tryParse(s) ?? 0).toList();
       for (var i = 0; i < max(rParts.length, cParts.length); i++) {
         final r = i < rParts.length ? rParts[i] : 0;
         final c = i < cParts.length ? cParts[i] : 0;
@@ -775,14 +779,20 @@ class AppState extends ChangeNotifier {
   /// Descarga el APK a la caché de la app y retorna la ruta del archivo.
   Future<String?> downloadApk(String url, void Function(double percent, int downloaded, int total)? onProgress) async {
     try {
-      final dir = Directory('${Directory.current.path}/update_cache');
-      if (!await dir.exists()) await dir.create(recursive: true);
+      final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/MobilDesk_Update.apk';
       final file = File(filePath);
+      if (await file.exists()) await file.delete();
 
       final client = HttpClient();
       final request = await client.getUrl(Uri.parse(url));
+      request.headers.set('User-Agent', 'MobilDesk-App/${await getCurrentVersion()}');
       final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('HTTP ${response.statusCode} al descargar APK');
+        client.close();
+        return null;
+      }
       final totalSize = response.contentLength > 0 ? response.contentLength : 0;
       var bytesDown = 0;
 
@@ -811,13 +821,18 @@ class AppState extends ChangeNotifier {
   /// Abre el APK con el instalador del sistema Android.
   Future<bool> openApkForInstall(String filePath) async {
     try {
-      final uri = Uri.file(filePath);
-      if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-      return false;
+      final res = await OpenFilex.open(filePath, type: 'application/vnd.android.package-archive');
+      debugPrint('OpenFilex result: ${res.type} ${res.message}');
+      return res.type == ResultType.done;
     } catch (e) {
       debugPrint('Error abriendo APK: $e');
+      // Fallback: intentar con url_launcher
+      try {
+        final uri = Uri.file(filePath);
+        if (await canLaunchUrl(uri)) {
+          return await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      } catch (_) {}
       return false;
     }
   }
