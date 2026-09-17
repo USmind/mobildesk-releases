@@ -447,7 +447,7 @@ def get_sales_history():
             """
             SELECT s.id, s.numero_factura, u.nombre AS usuario_nombre, c.nombre AS cliente_nombre,
                    s.tasa_utilizada, s.total_usd, s.total_bs, s.metodo_pago,
-                   s.vuelto_bs, s.fecha, s.estado, s.es_fiada,
+                   s.pagos_detalle, s.vuelto_bs, s.fecha, s.estado, s.es_fiada,
                    COALESCE(d.saldo_bs, 0) AS saldo_pendiente
             FROM sales s
             LEFT JOIN users u ON s.usuario_id = u.id

@@ -190,11 +190,14 @@ class DetalleClienteDialog(QDialog):
         self.tabla_facturas = QTableWidget()
         self.tabla_facturas.verticalHeader().setVisible(False)
         self.tabla_facturas.setColumnCount(5)
-        self.tabla_facturas.setHorizontalHeaderLabels(["Factura", "Fecha", "Total USD", "Saldo USD", "Estado"])
+        self.tabla_facturas.setHorizontalHeaderLabels(["Factura", "Fecha", "Total", "Saldo", "Estado"])
         self.tabla_facturas.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tabla_facturas.setSelectionBehavior(QTableWidget.SelectRows)
         self.tabla_facturas.setSelectionMode(QTableWidget.SingleSelection)
+        self.tabla_facturas.setAlternatingRowColors(True)
         self.tabla_facturas.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tabla_facturas.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tabla_facturas.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.tabla_facturas.itemSelectionChanged.connect(self.mostrar_factura)
         layout.addWidget(self.tabla_facturas)
 
@@ -263,15 +266,35 @@ class DetalleClienteDialog(QDialog):
         for f in sorted(self.facturas, key=lambda x: int(x.get("id") or 0)):
             row = self.tabla_facturas.rowCount()
             self.tabla_facturas.insertRow(row)
-            f_total = float(f.get("total_usd") or 0)
-            f_saldo = float(f.get("saldo_usd") or 0)
-            item_fac = QTableWidgetItem(f"#{f.get('numero_factura')}")
+            f_total_usd = float(f.get("total_usd") or 0)
+            f_saldo_usd = float(f.get("saldo_usd") or 0)
+            f_total_bs = f_total_usd * rate if rate else float(f.get("total_bs") or 0)
+            f_saldo_bs = f_saldo_usd * rate if rate else float(f.get("saldo_bs") or 0)
+            raw = str(f.get('numero_factura') or "").strip()
+            if raw.isdigit():
+                fac_txt = f"#{int(raw):04d}"
+            elif raw:
+                fac_txt = f"#{raw}"
+            else:
+                fac_txt = "—"
+            item_fac = QTableWidgetItem(fac_txt)
             item_fac.setData(Qt.UserRole, int(f.get("id")))
+            item_fac.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.tabla_facturas.setItem(row, 0, item_fac)
-            self.tabla_facturas.setItem(row, 1, QTableWidgetItem(str(f.get("fecha") or "")[:19]))
-            self.tabla_facturas.setItem(row, 2, QTableWidgetItem(f"$ {f_total:,.2f}"))
-            self.tabla_facturas.setItem(row, 3, QTableWidgetItem(f"$ {f_saldo:,.2f}"))
-            self.tabla_facturas.setItem(row, 4, QTableWidgetItem("Pagada" if f_saldo <= 0.001 else "Pendiente"))
+            self.tabla_facturas.setItem(row, 1, QTableWidgetItem(str(f.get("fecha") or "")[:16].replace("T"," ")))
+            item_t = QTableWidgetItem(f"Bs {f_total_bs:,.2f}  (${f_total_usd:,.2f})")
+            item_t.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.tabla_facturas.setItem(row, 2, item_t)
+            item_s = QTableWidgetItem(f"Bs {f_saldo_bs:,.2f}  (${f_saldo_usd:,.2f})")
+            item_s.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.tabla_facturas.setItem(row, 3, item_s)
+            est = "Pagada" if f_saldo_usd <= 0.001 else "Pendiente"
+            item_e = QTableWidgetItem(est)
+            if est == "Pendiente":
+                item_e.setForeground(Qt.darkYellow)
+            else:
+                item_e.setForeground(Qt.darkGreen)
+            self.tabla_facturas.setItem(row, 4, item_e)
         if self.tabla_facturas.rowCount():
             self.tabla_facturas.selectRow(0)
         self.mostrar_factura()
@@ -327,9 +350,15 @@ class DetalleClienteDialog(QDialog):
             self.tabla_productos.setItem(row, 3, QTableWidgetItem(f"Bs {p_bs:,.2f}"))
             self.tabla_productos.setItem(row, 4, QTableWidgetItem(f"Bs {cant * p_bs:,.2f}"))
         if pagos:
-            txt = "<b>Abonos de esta factura:</b><br>" + "<br>".join(
-                f"• <b>Bs {float(p.get('monto_bs') or 0):,.2f}</b> — {p.get('fecha','')}" for p in pagos
-            )
+            # Mostrar hasta 5 abonos con Bs + USD
+            lines = []
+            for p in pagos[:5]:
+                m_bs = float(p.get('monto_bs') or 0)
+                m_usd = float(p.get('monto_usd') or (m_bs / rate if rate else 0))
+                lines.append(f"• <b>Bs {m_bs:,.2f}</b> (${m_usd:,.2f}) — {str(p.get('fecha',''))[:19]}")
+            if len(pagos) > 5:
+                lines.append(f"<i>+{len(pagos)-5} abono(s) más</i>")
+            txt = "<b>Abonos de esta factura:</b><br>" + "<br>".join(lines)
         else:
             txt = "<i>Sin abonos registrados en esta factura.</i>"
         self.lbl_pagos.setText(txt)
@@ -413,33 +442,21 @@ class FiadosWindow(QDialog):
         header_layout.addWidget(btn_refresh)
         layout.addLayout(header_layout)
 
-        # Resumen Minimalista (KPIs duales BS + USD)
+        # Resumen — 3 cards: Por cobrar (Bs+USD), Facturas, Recuperado
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(12)
 
-        self.lbl_kpi_total = self._crear_kpi_item("TOTAL EN CRÉDITO", "Bs 0,00")
-        frame_total = QFrame()
-        frame_total.setObjectName("kpi")
-        frame_total.setLayout(self.lbl_kpi_total)
-        kpi_row.addWidget(frame_total)
-
-        self.lbl_kpi_total_usd = self._crear_kpi_item("TOTAL USD", "$ 0,00")
-        frame_total_usd = QFrame()
-        frame_total_usd.setObjectName("kpi")
-        frame_total_usd.setLayout(self.lbl_kpi_total_usd)
-        kpi_row.addWidget(frame_total_usd)
-
-        self.lbl_kpi_pendiente = self._crear_kpi_item("SALDO PENDIENTE", "Bs 0,00", destacado=True)
+        self.lbl_kpi_pendiente = self._crear_kpi_item("POR COBRAR", "Bs 0,00", destacado=True)
         frame_pend = QFrame()
         frame_pend.setObjectName("kpi")
         frame_pend.setLayout(self.lbl_kpi_pendiente)
         kpi_row.addWidget(frame_pend)
 
-        self.lbl_kpi_pendiente_usd = self._crear_kpi_item("SALDO USD", "$ 0,00", destacado=True)
-        frame_pend_usd = QFrame()
-        frame_pend_usd.setObjectName("kpi")
-        frame_pend_usd.setLayout(self.lbl_kpi_pendiente_usd)
-        kpi_row.addWidget(frame_pend_usd)
+        self.lbl_kpi_facturas = self._crear_kpi_item("FACTURAS PENDIENTES", "0")
+        frame_fac = QFrame()
+        frame_fac.setObjectName("kpi")
+        frame_fac.setLayout(self.lbl_kpi_facturas)
+        kpi_row.addWidget(frame_fac)
 
         self.lbl_kpi_cobrado = self._crear_kpi_item("TOTAL RECUPERADO", "Bs 0,00")
         frame_cob = QFrame()
@@ -478,24 +495,22 @@ class FiadosWindow(QDialog):
         search_layout.addWidget(self.btn_todos)
         layout.addLayout(search_layout)
 
-        # Tabla: un cliente, una fila (su deuda total; el detalle va por dentro)
+        # Tabla: un cliente, una fila — 5 columnas combinadas
         self.tabla = QTableWidget()
         self.tabla.verticalHeader().setVisible(False)
-        self.tabla.setColumnCount(8)
+        self.tabla.setColumnCount(5)
         self.tabla.setHorizontalHeaderLabels([
             "Cliente",
-            "Teléfono",
             "Facturas",
-            "Total Venta",
-            "Total USD",
-            "Saldo Pendiente",
-            "Saldo USD",
+            "Total",
+            "Saldo",
             "Estado",
         ])
         self.tabla.setFocusPolicy(Qt.NoFocus)
+        self.tabla.setAlternatingRowColors(True)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tabla.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.tabla.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeToContents)
+        self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.tabla.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
         self.tabla.setSelectionMode(QTableWidget.SingleSelection)
         self.tabla.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -588,18 +603,24 @@ class FiadosWindow(QDialog):
     def cargar_deudas(self):
         self.deudas = get_credit_debts()
         rate = get_current_rate_value() or 0
-        # USD es fuente de verdad; BS se recalcula con tasa actual
         total_usd = sum(float(d.get("total_usd") or 0) for d in self.deudas)
         saldo_usd = sum(float(d.get("saldo_usd") or 0) for d in self.deudas)
         total_bs = total_usd * rate if rate else 0
         pendiente_bs = saldo_usd * rate if rate else 0
         cobrado_bs = total_bs - pendiente_bs
+        pendientes_cnt = sum(1 for d in self.deudas if float(d.get("saldo_usd") or 0) > 0.001)
 
-        self.lbl_kpi_total.val_label.setText(f"Bs {total_bs:,.2f}")
-        self.lbl_kpi_total_usd.val_label.setText(f"$ {total_usd:,.2f}")
-        self.lbl_kpi_pendiente.val_label.setText(f"Bs {pendiente_bs:,.2f}")
-        self.lbl_kpi_pendiente_usd.val_label.setText(f"$ {saldo_usd:,.2f}")
+        self.lbl_kpi_pendiente.val_label.setText(f"Bs {pendiente_bs:,.2f}  (${saldo_usd:,.2f})")
+        self.lbl_kpi_facturas.val_label.setText(f"{pendientes_cnt}  (Bs {total_bs:,.2f})")
         self.lbl_kpi_cobrado.val_label.setText(f"Bs {cobrado_bs:,.2f}")
+
+        # compat para código que aún lea los viejos labels
+        if hasattr(self, "lbl_kpi_total"):
+            self.lbl_kpi_total.val_label.setText(f"Bs {total_bs:,.2f}")
+        if hasattr(self, "lbl_kpi_total_usd"):
+            self.lbl_kpi_total_usd.val_label.setText(f"$ {total_usd:,.2f}")
+        if hasattr(self, "lbl_kpi_pendiente_usd"):
+            self.lbl_kpi_pendiente_usd.val_label.setText(f"$ {saldo_usd:,.2f}")
 
         self.filtrar_tabla()
 
@@ -656,26 +677,38 @@ class FiadosWindow(QDialog):
             row = self.tabla.rowCount()
             self.tabla.insertRow(row)
 
+            # Facturas como chips #0005, #0006
+            facs = []
+            for x in g["deudas"]:
+                raw = str(x.get("numero_factura") or "").strip()
+                if raw.isdigit():
+                    facs.append(f"#{int(raw):04d}")
+                elif raw:
+                    facs.append(f"#{raw}")
+            fac_chip = ", ".join(facs[:3]) + (f" +{len(facs)-3}" if len(facs) > 3 else "")
+            if not fac_chip:
+                fac_chip = f"{g['num_facturas']} factura(s)"
+
             item_cli = QTableWidgetItem(cliente)
             item_cli.setData(Qt.UserRole, g["cliente_id"])
-            item_tel = QTableWidgetItem(telefono if telefono else "—")
-            item_fac = QTableWidgetItem(f"{g['num_facturas']} factura(s)")
-            item_tot = QTableWidgetItem(f"Bs {total:,.2f}")
-            item_tot.setData(Qt.UserRole, total)
-            item_tot_usd = QTableWidgetItem(f"$ {total_usd:,.2f}")
-            item_sal = QTableWidgetItem(f"Bs {saldo:,.2f}")
-            item_sal.setData(Qt.UserRole, saldo)
-            item_sal_usd = QTableWidgetItem(f"$ {saldo_usd:,.2f}")
+            item_cli.setToolTip(f"{cliente} · Tel: {telefono or '—'}")
+            item_fac = QTableWidgetItem(fac_chip)
+            item_fac.setToolTip(", ".join(facs) if facs else "")
+            item_tot = QTableWidgetItem(f"Bs {total:,.2f}  (${total_usd:,.2f})")
+            item_tot.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            item_sal = QTableWidgetItem(f"Bs {saldo:,.2f}  (${saldo_usd:,.2f})")
+            item_sal.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             item_est = QTableWidgetItem(estado)
+            if estado == "Pendiente":
+                item_est.setForeground(Qt.darkYellow)
+            elif estado == "Pagada":
+                item_est.setForeground(Qt.darkGreen)
 
             self.tabla.setItem(row, 0, item_cli)
-            self.tabla.setItem(row, 1, item_tel)
-            self.tabla.setItem(row, 2, item_fac)
-            self.tabla.setItem(row, 3, item_tot)
-            self.tabla.setItem(row, 4, item_tot_usd)
-            self.tabla.setItem(row, 5, item_sal)
-            self.tabla.setItem(row, 6, item_sal_usd)
-            self.tabla.setItem(row, 7, item_est)
+            self.tabla.setItem(row, 1, item_fac)
+            self.tabla.setItem(row, 2, item_tot)
+            self.tabla.setItem(row, 3, item_sal)
+            self.tabla.setItem(row, 4, item_est)
 
         self._on_seleccion_cambiada()
 

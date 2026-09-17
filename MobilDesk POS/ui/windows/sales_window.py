@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QFrame
 )
 
+import json
 from PySide6.QtCore import Qt, QStringListModel, Signal
 
 from modules.ventas.sales_service import (
@@ -980,9 +981,16 @@ class FacturaDetalleDialog(QDialog):
         layout.setContentsMargins(22, 18, 22, 18)
         layout.setSpacing(10)
 
-        titulo = QLabel(f"Factura #{data.get('numero_factura')}")
+        raw_nf = str(data.get('numero_factura') or "")
+        if raw_nf.isdigit():
+            nf_txt = f"#{int(raw_nf):04d}"
+        elif raw_nf:
+            nf_txt = f"#{raw_nf}"
+        else:
+            nf_txt = "#—"
+        titulo = QLabel(f"Factura {nf_txt}")
         titulo.setObjectName("pageTitle")
-        sub = QLabel(f"{str(data.get('fecha') or '')[:19]} · Cajero: {data.get('usuario_nombre') or 'Sistema'} · Estado: {str(data.get('estado') or 'completada').title()}")
+        sub = QLabel(f"{str(data.get('fecha') or '')[:19]} · Cajero: {data.get('usuario_nombre') or 'Sistema'} · Estado: {str(data.get('estado') or 'completada').title()} · Tasa Bs {tasa:,.2f}")
         sub.setObjectName("pageSubtitle")
         sub.setWordWrap(True)
         layout.addWidget(titulo)
@@ -1037,38 +1045,83 @@ class FacturaDetalleDialog(QDialog):
             total_usd = float(data.get("total_usd") or 0)
         except Exception:
             total_bs = total_usd = 0
-        info = (
-            f"<b>Total:</b> Bs {total_bs:,.2f} (${total_usd:,.2f}) · <b>Tasa:</b> Bs {tasa:,.2f}<br>"
-            f"<b>Método:</b> {self._metodo_texto(data.get('metodo_pago'))}"
-        )
-        if str(data.get("metodo_pago") or "") == "mixto" and data.get("pagos_detalle"):
+
+        # Resumen principal
+        info_top = f"<b>Total:</b> Bs {total_bs:,.2f}  (${total_usd:,.2f}) &nbsp;·&nbsp; <b>Tasa:</b> Bs {tasa:,.2f} &nbsp;·&nbsp; <b>Método:</b> {self._metodo_texto(data.get('metodo_pago'))}"
+        lbl_top = QLabel(info_top)
+        lbl_top.setWordWrap(True)
+        layout.addWidget(lbl_top)
+
+        # Box de desglose de pago
+        metodo_raw = str(data.get("metodo_pago") or "").strip().lower()
+        box = QFrame()
+        box.setObjectName("card")
+        box.setStyleSheet("QFrame#card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }")
+        b_layout = QVBoxLayout(box)
+        b_layout.setContentsMargins(12, 10, 12, 10)
+        b_layout.setSpacing(4)
+
+        if metodo_raw == "mixto" and data.get("pagos_detalle"):
             try:
                 det = _json.loads(data["pagos_detalle"]) if isinstance(data["pagos_detalle"], str) else data["pagos_detalle"]
             except Exception:
                 det = {}
-            partes = []
-            if det.get("divisas_usd"):
-                partes.append(f"Divisas ${float(det['divisas_usd']):,.2f}")
+            b_layout.addWidget(QLabel("<b>Desglose del pago:</b>"))
+            grid = QFrame()
+            g = QVBoxLayout(grid)
+            g.setContentsMargins(0, 0, 0, 0)
+            g.setSpacing(2)
+            def _add_row(label, val):
+                row = QHBoxLayout()
+                row.addWidget(QLabel(label))
+                lb = QLabel(val)
+                lb.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                lb.setStyleSheet("font-weight: 600;")
+                row.addWidget(lb)
+                g.addLayout(row)
             if det.get("efectivo_bs"):
-                partes.append(f"Efectivo Bs {float(det['efectivo_bs']):,.2f}")
+                _add_row("Efectivo", f"Bs {float(det['efectivo_bs']):,.2f}")
             if det.get("pago_movil_bs"):
-                partes.append(f"Pago Móvil Bs {float(det['pago_movil_bs']):,.2f}")
+                _add_row("Pago Móvil", f"Bs {float(det['pago_movil_bs']):,.2f}")
+            if det.get("divisas_usd"):
+                try:
+                    d_bs = float(det.get("divisas_bs") or float(det["divisas_usd"]) * tasa)
+                except Exception:
+                    d_bs = 0
+                _add_row("Divisas", f"${float(det['divisas_usd']):,.2f}  (Bs {d_bs:,.2f})")
             if det.get("tarjeta_bs"):
-                partes.append(f"Tarjeta Bs {float(det['tarjeta_bs']):,.2f}")
+                _add_row("Tarjeta", f"Bs {float(det['tarjeta_bs']):,.2f}")
             if det.get("fiado_bs"):
-                partes.append(f"Fiado Bs {float(det['fiado_bs']):,.2f}")
-            if partes:
-                info += "<br><i>" + " + ".join(partes) + "</i>"
-        elif str(data.get("metodo_pago") or "") == "efectivo":
+                _add_row("Fiado", f"Bs {float(det['fiado_bs']):,.2f}")
+            # Vuelto si existe
+            if det.get("vuelto_bs") or det.get("vuelto_usd"):
+                sep = QFrame()
+                sep.setFrameShape(QFrame.HLine)
+                sep.setStyleSheet("color: #e2e8f0;")
+                g.addWidget(sep)
+                if det.get("vuelto_bs"):
+                    _add_row("Vuelto", f"Bs {float(det['vuelto_bs']):,.2f}")
+                if det.get("vuelto_usd"):
+                    _add_row("Vuelto USD", f"${float(det['vuelto_usd']):,.2f}")
+            b_layout.addWidget(grid)
+        elif metodo_raw == "efectivo":
             try:
-                info += f" · Recibido Bs {float(data.get('monto_recibido_bs') or total_bs):,.2f} · Vuelto Bs {float(data.get('vuelto_bs') or 0):,.2f}"
+                rec = float(data.get('monto_recibido_bs') or total_bs)
+                vue = float(data.get('vuelto_bs') or 0)
+                b_layout.addWidget(QLabel(f"<b>Efectivo:</b> Recibido Bs {rec:,.2f} &nbsp;·&nbsp; Vuelto Bs {vue:,.2f}"))
             except Exception:
                 pass
-        elif str(data.get("metodo_pago") or "") == "divisas":
+        elif metodo_raw == "divisas":
             try:
-                info += f" · Recibido ${float(data.get('monto_recibido_usd') or total_usd):,.2f} · Vuelto ${float(data.get('vuelto_usd') or 0):,.2f}"
+                rec = float(data.get('monto_recibido_usd') or total_usd)
+                vue = float(data.get('vuelto_usd') or 0)
+                b_layout.addWidget(QLabel(f"<b>Divisas:</b> Recibido ${rec:,.2f} &nbsp;·&nbsp; Vuelto ${vue:,.2f}  (Bs {vue*tasa:,.2f})"))
             except Exception:
                 pass
+        else:
+            b_layout.addWidget(QLabel(f"<b>{self._metodo_texto(data.get('metodo_pago'))}</b>"))
+
+        # Saldo si es fiada
         if data.get("es_fiada"):
             try:
                 dinfo = get_sale_debt_info(int(self.venta_id))
@@ -1080,12 +1133,20 @@ class FacturaDetalleDialog(QDialog):
                 except Exception:
                     s_usd = 0
                 s_bs = s_usd * tasa if tasa else 0
-                info += f"<br><b style='color:#b91c1c;'>Saldo pendiente: Bs {s_bs:,.2f} (${s_usd:,.2f}) — {len(dinfo['pagos'])} abono(s)</b>"
-                for p in dinfo["pagos"]:
-                    info += f"<br>• Abono Bs {float(p.get('monto_bs') or 0):,.2f} — {p.get('fecha','')}"
-        lbl_info = QLabel(info)
-        lbl_info.setWordWrap(True)
-        layout.addWidget(lbl_info)
+                sep = QFrame()
+                sep.setFrameShape(QFrame.HLine)
+                sep.setStyleSheet("color: #fecaca;")
+                b_layout.addWidget(sep)
+                lbl_s = QLabel(f"<b style='color:#b91c1c;'>Saldo pendiente: Bs {s_bs:,.2f} (${s_usd:,.2f}) — {len(dinfo['pagos'])} abono(s)</b>")
+                lbl_s.setWordWrap(True)
+                b_layout.addWidget(lbl_s)
+                if dinfo["pagos"]:
+                    for p in dinfo["pagos"][:5]:
+                        b_layout.addWidget(QLabel(f"• Abono Bs {float(p.get('monto_bs') or 0):,.2f} — {str(p.get('fecha',''))[:19]}"))
+                    if len(dinfo["pagos"]) > 5:
+                        b_layout.addWidget(QLabel(f"<i>+{len(dinfo['pagos'])-5} abono(s) más — ver ticket</i>"))
+
+        layout.addWidget(box)
 
         btn_box = QHBoxLayout()
         btn_box.addStretch()
@@ -1144,15 +1205,13 @@ class SalesHistoryWindow(QWidget):
         h_layout.addWidget(btn_refrescar)
         layout.addLayout(h_layout)
 
-        # KPIs Summary
+        # KPIs Summary — 2 cards: facturas + ventas combinado Bs/USD
         kpi_layout = QHBoxLayout()
         kpi_layout.setSpacing(12)
-        self.card_count = self._crear_kpi_card("TOTAL FACTURAS", "0", "#2563eb")
-        self.card_total_bs = self._crear_kpi_card("TOTAL VENTAS (BS)", "Bs 0,00", "#16a34a")
-        self.card_total_usd = self._crear_kpi_card("TOTAL VENTAS (USD)", "$0,00", "#0284c7")
+        self.card_count = self._crear_kpi_card("TOTAL FACTURAS", "0")
+        self.card_total = self._crear_kpi_card("TOTAL VENTAS", "Bs 0,00")
         kpi_layout.addWidget(self.card_count)
-        kpi_layout.addWidget(self.card_total_bs)
-        kpi_layout.addWidget(self.card_total_usd)
+        kpi_layout.addWidget(self.card_total)
         layout.addLayout(kpi_layout)
 
         # Search and Filters
@@ -1173,21 +1232,22 @@ class SalesHistoryWindow(QWidget):
         search_layout.addWidget(self.btn_hoy)
         layout.addLayout(search_layout)
 
-        # Table
+        # Table — 6 columnas: Factura, Fecha, Cliente, Pago, Total, Estado
         self.tabla = QTableWidget()
         self.tabla.verticalHeader().setVisible(False)
-        self.tabla.setColumnCount(8)
+        self.tabla.setColumnCount(6)
         self.tabla.setHorizontalHeaderLabels([
-            "Factura #", "Fecha y Hora", "Cajero", "Cliente", "Método de Pago", "Total (Bs)", "Total (USD)", "Estado"
+            "Factura #", "Fecha", "Cliente", "Pago", "Total", "Estado"
         ])
         self.tabla.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
         self.tabla.setSelectionMode(QTableWidget.SingleSelection)
         self.tabla.setFocusPolicy(Qt.NoFocus)
+        self.tabla.setAlternatingRowColors(True)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.tabla.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.tabla.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.tabla.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.tabla.doubleClicked.connect(self.ver_detalle)
         layout.addWidget(self.tabla)
 
@@ -1306,30 +1366,90 @@ class SalesHistoryWindow(QWidget):
             row = self.tabla.rowCount()
             self.tabla.insertRow(row)
 
-            item_fac = QTableWidgetItem(f"#{fac}")
+            # Factura con padding profesional
+            fac_raw = fac.strip()
+            if fac_raw.isdigit():
+                fac_txt = f"#{int(fac_raw):04d}"
+            elif fac_raw.upper().startswith("MOV"):
+                fac_txt = f"#{fac_raw}"
+            elif fac_raw:
+                fac_txt = f"#{fac_raw}"
+            else:
+                fac_txt = "—"
+            item_fac = QTableWidgetItem(fac_txt)
             item_fac.setData(Qt.UserRole, venta["id"])
-            item_fecha = QTableWidgetItem(fecha[:19] if fecha else "—")
-            item_cajero = QTableWidgetItem(cajero if cajero else "Sistema")
+            item_fac.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            item_fac.setToolTip(f"ID {venta['id']} · {fac_raw}")
+
+            # Fecha + cajero combinados
+            fecha_txt = fecha[:16].replace("T", " ") if fecha else "—"
+            cajero_txt = cajero if cajero else "Sistema"
+            item_fecha = QTableWidgetItem(f"{fecha_txt} · {cajero_txt}" if fecha else "—")
+            item_fecha.setToolTip(fecha)
+
             item_cliente = QTableWidgetItem(cliente if cliente else "—")
-            item_metodo = QTableWidgetItem(metodo)
-            item_bs = QTableWidgetItem(f"Bs {v_bs:,.2f}")
-            item_usd = QTableWidgetItem(f"${v_usd:,.2f}")
-            
-            estado_val = str(venta["estado"] if venta["estado"] is not None else "completada").title()
+            if not cliente:
+                item_cliente.setForeground(Qt.gray)
+
+            # Pago como badge corto + tooltip con desglose mixto
+            pago_short = metodo
+            tooltip_pago = metodo
+            if raw_met == "mixto":
+                pago_short = "Mixto"
+                try:
+                    raw_det = venta["pagos_detalle"] if "pagos_detalle" in venta.keys() else None
+                    det = json.loads(raw_det) if isinstance(raw_det, str) and raw_det else (raw_det or {})
+                    partes = []
+                    if det.get("efectivo_bs"):
+                        partes.append(f"Efectivo Bs {float(det['efectivo_bs']):,.2f}")
+                    if det.get("pago_movil_bs"):
+                        partes.append(f"Pago Móvil Bs {float(det['pago_movil_bs']):,.2f}")
+                    if det.get("divisas_usd"):
+                        partes.append(f"Divisas ${float(det['divisas_usd']):,.2f}")
+                    if det.get("tarjeta_bs"):
+                        partes.append(f"Tarjeta Bs {float(det['tarjeta_bs']):,.2f}")
+                    if det.get("fiado_bs"):
+                        partes.append(f"Fiado Bs {float(det['fiado_bs']):,.2f}")
+                    if partes:
+                        tooltip_pago = "Mixto: " + " + ".join(partes)
+                except Exception:
+                    pass
+            elif raw_met == "pago_movil":
+                pago_short = "Pago Móvil"
+            elif raw_met == "divisas":
+                pago_short = "Divisas"
+            elif raw_met == "tarjeta":
+                pago_short = "Tarjeta"
+            elif raw_met == "fiado":
+                pago_short = "Fiado"
+            elif raw_met == "efectivo":
+                pago_short = "Efectivo"
+            item_metodo = QTableWidgetItem(pago_short)
+            item_metodo.setToolTip(tooltip_pago)
+
+            # Total combinado Bs + USD en una celda
+            item_total = QTableWidgetItem(f"Bs {v_bs:,.2f}  (${v_usd:,.2f})")
+            item_total.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            item_total.setToolTip(f"Bs {v_bs:,.2f} · ${v_usd:,.2f}")
+
+            estado_val = str(venta["estado"] if venta["estado"] is not None else "completada").strip().title()
             item_estado = QTableWidgetItem(estado_val)
+            if estado_val.lower() == "completada":
+                item_estado.setForeground(Qt.darkGreen)
+            elif estado_val.lower() == "pendiente":
+                item_estado.setForeground(Qt.darkYellow)
+            elif estado_val.lower() in ("anulada", "cancelada"):
+                item_estado.setForeground(Qt.red)
 
             self.tabla.setItem(row, 0, item_fac)
             self.tabla.setItem(row, 1, item_fecha)
-            self.tabla.setItem(row, 2, item_cajero)
-            self.tabla.setItem(row, 3, item_cliente)
-            self.tabla.setItem(row, 4, item_metodo)
-            self.tabla.setItem(row, 5, item_bs)
-            self.tabla.setItem(row, 6, item_usd)
-            self.tabla.setItem(row, 7, item_estado)
+            self.tabla.setItem(row, 2, item_cliente)
+            self.tabla.setItem(row, 3, item_metodo)
+            self.tabla.setItem(row, 4, item_total)
+            self.tabla.setItem(row, 5, item_estado)
 
         self.card_count.val_label.setText(str(count))
-        self.card_total_bs.val_label.setText(f"Bs {tot_bs:,.2f}")
-        self.card_total_usd.val_label.setText(f"${tot_usd:,.2f}")
+        self.card_total.val_label.setText(f"Bs {tot_bs:,.2f}  (${tot_usd:,.2f})")
 
     def _venta_seleccionada(self):
         row = self.tabla.currentRow()
