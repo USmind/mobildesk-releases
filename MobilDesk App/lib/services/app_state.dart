@@ -836,4 +836,18 @@ class AppState extends ChangeNotifier {
       return false;
     }
   }
+
+  /// Fallback: abrir URL de descarga en navegador externo.
+  Future<bool> openDownloadInBrowser(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error abriendo navegador: $e');
+      return false;
+    }
+  }
 }

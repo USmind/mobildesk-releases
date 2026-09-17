@@ -981,6 +981,10 @@ class FacturaDetalleDialog(QDialog):
         layout.setContentsMargins(22, 18, 22, 18)
         layout.setSpacing(10)
 
+        try:
+            tasa = float(data.get("tasa_utilizada") or 0)
+        except Exception:
+            tasa = 0
         raw_nf = str(data.get('numero_factura') or "")
         if raw_nf.isdigit():
             nf_txt = f"#{int(raw_nf):04d}"

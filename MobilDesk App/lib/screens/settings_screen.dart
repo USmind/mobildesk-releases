@@ -114,10 +114,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
     if (apkPath == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al descargar la actualización.')),
-        );
+      // Fallback: abrir en navegador para descarga manual
+      try {
+        final uri = Uri.parse(info['download_url']);
+        // ignore: use_build_context_synchronously
+        final ok = await widget.state.openDownloadInBrowser(uri.toString());
+        if (!mounted) return;
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Descarga iniciada en el navegador. Instala el APK descargado.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al descargar. Intenta manual: github.com/USmind/mobildesk-releases')),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al descargar la actualización.')),
+          );
+        }
       }
       return;
     }
@@ -125,10 +142,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final opened = await widget.state.openApkForInstall(apkPath!);
     if (!mounted) return;
     if (!opened) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el instalador. Instala el APK manualmente.')),
-        );
+      // Fallback navegador
+      try {
+        final uri = Uri.parse(info['download_url']);
+        await widget.state.openDownloadInBrowser(uri.toString());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir el instalador. Se abrió el navegador para descarga manual.')),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir el instalador. Instala el APK manualmente.')),
+          );
+        }
       }
     }
   }
