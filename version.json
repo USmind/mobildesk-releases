@@ -1,9 +1,9 @@
 {
-  "version": "1.2.8",
+  "version": "2.0.28",
   "pc_version": "2.0.28",
   "android_version": "1.2.8",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.28/MobilDesk-v1.2.8.apk",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.28/Instalar-MobilDesk-v2.0.28.exe",
   "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.28/Instalar-MobilDesk-v2.0.28.exe",
   "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.28/MobilDesk-v1.2.8.apk",
-  "changelog": "Facturas y fiados más ordenados: números uniformes, totales combinados Bs/USD, desglose de pago mixto detallado y abonos en tabla."
+  "changelog": "Facturas y fiados mas ordenados: numeros uniformes, totales combinados Bs/USD, desglose de pago mixto detallado y abonos en tabla."
 }
