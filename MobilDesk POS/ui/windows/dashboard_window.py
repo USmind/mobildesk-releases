@@ -1,5 +1,4 @@
 from PySide6.QtCore import Qt, QTimer, QThread, Signal, QDateTime
-from PySide6.QtGui import QShortcut, QKeySequence
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -39,7 +38,6 @@ from ui.windows.welcome_tour_dialog import WelcomeTourDialog
 from modules.licencia.license_service import init_or_get_license_info
 from modules.sync.sync_service import is_configured, sync_now
 from modules.actualizador import BackgroundUpdateWorker, apply_update_and_restart, CURRENT_VERSION
-from config import PASSWORD_AUTORIZACION
 
 
 class BackgroundSyncWorker(QThread):
@@ -70,12 +68,6 @@ class DashboardWindow(QMainWindow):
 
         self.crear_interfaz()
         self.showMaximized()
-
-        try:
-            sc = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
-            sc.activated.connect(self.abrir_monitor_desarrollador)
-        except Exception:
-            pass
 
         if mostrar_tour_inicial:
             QTimer.singleShot(500, lambda: WelcomeTourDialog(self, self.nombre_negocio).exec())
@@ -133,21 +125,6 @@ class DashboardWindow(QMainWindow):
             if ok:
                 from PySide6.QtWidgets import QApplication
                 QApplication.quit()
-
-    def abrir_monitor_desarrollador(self):
-        try:
-            from PySide6.QtWidgets import QInputDialog
-            pwd, ok = QInputDialog.getText(self, "Monitor de Desarrollador", "Clave de administrador:", QLineEdit.Password)
-            if not ok or not pwd:
-                return
-            if pwd.strip() != PASSWORD_AUTORIZACION:
-                QMessageBox.warning(self, "Acceso denegado", "Clave incorrecta.")
-                return
-            from ui.windows.dev_monitor_window import DevMonitorWindow
-            dlg = DevMonitorWindow(self)
-            dlg.exec()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo abrir el monitor:\n\n{e}")
 
     def sincronizar_en_segundo_plano(self):
         if not is_configured():
