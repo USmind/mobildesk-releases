@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/design_tokens.dart';
 import '../services/app_state.dart';
 
@@ -303,6 +304,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           _fullButton('Buscar Actualizaciones', Icons.download_rounded, DesignTokens.primary, _checkForUpdate),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton.icon(
+              onPressed: () async {
+                final uri = Uri.parse('https://github.com/USmind/mobildesk-releases/releases/latest');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: Icon(Icons.computer_rounded, size: 18, color: DesignTokens.primary),
+              label: Text('Descargar programa para PC (Windows)', style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.primary, fontWeight: FontWeight.bold)),
+            ),
+          ),
           const SizedBox(height: 24),
 
           _sectionTitle('Cerrar Sesión', Icons.logout_rounded),

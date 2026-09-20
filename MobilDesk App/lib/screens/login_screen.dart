@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/design_tokens.dart';
 import '../services/app_state.dart';
 import '../widgets/dialogs.dart';
@@ -182,6 +183,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   '¿No tienes código? En la PC ve a Configuración → Mi Código',
                   textAlign: TextAlign.center,
                   style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+                ),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse('https://github.com/USmind/mobildesk-releases/releases/latest');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  icon: Icon(Icons.download_rounded, size: 18, color: DesignTokens.primary),
+                  label: Text('¿Solo tienes la App? Descargar programa para PC', style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.primary, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

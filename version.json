@@ -1,9 +1,9 @@
 {
-  "version": "2.0.29",
-  "pc_version": "2.0.29",
-  "android_version": "1.2.9",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.29/Instalar-MobilDesk-v2.0.29.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.29/Instalar-MobilDesk-v2.0.29.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.29/MobilDesk-v1.2.9.apk",
-  "changelog": "Fix detalle de factura (error tasa) en espanol y fix descarga App con FileProvider + fallback navegador."
+  "version": "2.0.30",
+  "pc_version": "2.0.30",
+  "android_version": "1.2.10",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.30/Instalar-MobilDesk-v2.0.30.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.30/Instalar-MobilDesk-v2.0.30.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.30/MobilDesk-v1.2.10.apk",
+  "changelog": "Monitor privado dueno (Ctrl+Shift+D) para ver y borrar bodega de prueba por codigo + link Descargar PC en App."
 }
