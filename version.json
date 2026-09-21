@@ -2,8 +2,8 @@
   "version": "2.0.31",
   "pc_version": "2.0.31",
   "android_version": "1.2.10",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/Instalar-MobilDesk-v2.0.31.exe",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/MobilDesk-v1.2.10.apk",
   "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/Instalar-MobilDesk-v2.0.31.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.30/MobilDesk-v1.2.10.apk",
-  "changelog": "Revert monitor oculto del programa principal. El monitor sera programa aparte."
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/MobilDesk-v1.2.10.apk",
+  "changelog": "Fix App descarga (FileProvider + fallback) y revert monitor oculto."
 }
