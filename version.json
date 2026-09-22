@@ -1,9 +1,9 @@
 {
-  "version": "2.0.31",
-  "pc_version": "2.0.31",
-  "android_version": "1.2.10",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/MobilDesk-v1.2.10.apk",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/Instalar-MobilDesk-v2.0.31.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.31/MobilDesk-v1.2.10.apk",
-  "changelog": "Fix App descarga (FileProvider + fallback) y revert monitor oculto."
+  "version": "2.0.32",
+  "pc_version": "2.0.32",
+  "android_version": "1.2.11",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/Instalar-MobilDesk-v2.0.32.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/Instalar-MobilDesk-v2.0.32.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/MobilDesk-v1.2.11.apk",
+  "changelog": "Login en App con mismos usuarios del PC (dropdown + contrasena), sesion independiente por dispositivo con mantener sesion."
 }
