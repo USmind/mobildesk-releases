@@ -14,6 +14,12 @@ from ui.theme import build_app_stylesheet
 
 def main():
     run_migrations()
+    # Sincronizar usuarios existentes para que la App pueda loguearse con los mismos (sesión por dispositivo)
+    try:
+        from modules.usuarios.user_service import sync_all_users_to_cloud
+        sync_all_users_to_cloud()
+    except Exception:
+        pass
 
     app = QApplication(sys.argv)
     app.setApplicationName("MobilDesk POS")

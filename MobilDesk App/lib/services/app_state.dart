@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
@@ -29,6 +30,12 @@ class AppState extends ChangeNotifier {
   String? refreshToken;
   String? businessId;
   String? email;
+  // Sesión de usuario por dispositivo (independiente por equipo)
+  String? appUserUsername;
+  String? appUserRole;
+  String? appUserNombre;
+  List<Map<String, dynamic>> appUsers = [];
+  bool keepAppSession = false;
 
   String businessName = 'MobilDesk';
   double exchangeRate = 763.0;
@@ -62,6 +69,8 @@ class AppState extends ChangeNotifier {
   String? clienteParaFiar;
 
   bool get isAuthenticated => (businessId != null && businessId!.trim().isNotEmpty);
+  bool get isAppUserLoggedIn => appUserUsername != null && appUserUsername!.trim().isNotEmpty;
+  bool get needsAppUserLogin => isAuthenticated && appUsers.isNotEmpty && !isAppUserLoggedIn;
 
   DateTime? get _licExpiracion => DateTime.tryParse(licFechaExpiracion);
 
@@ -193,6 +202,8 @@ class AppState extends ChangeNotifier {
 
     notifyListeners();
     if (isAuthenticated) {
+      await restoreAppUserSession();
+      await fetchAppUsers();
       sync();
     } else {
       syncStatus = 'Ingresa el Código de tu Negocio';
@@ -488,10 +499,17 @@ class AppState extends ChangeNotifier {
     sales.clear();
     seenEvents.clear();
     lastErrorMessage = null;
+    // Sesión de usuario por dispositivo: al cambiar de bodega, limpiar login previo
+    appUsers = [];
+    appUserUsername = null;
+    appUserRole = null;
+    appUserNombre = null;
 
     await save();
     notifyListeners();
     await sync();
+    await fetchAppUsers();
+    await restoreAppUserSession();
   }
 
   Future<void> login(String inputEmail, String password) async {
@@ -544,13 +562,23 @@ class AppState extends ChangeNotifier {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final oldBid = businessId;
     await prefs.remove('token');
     await prefs.remove('refreshToken');
     await prefs.remove('businessId');
     await prefs.remove('kiosko_state_v6');
+    if (oldBid != null) {
+      await prefs.remove('appUser_${oldBid}_username');
+      await prefs.remove('appUser_${oldBid}_role');
+      await prefs.remove('appUser_${oldBid}_nombre');
+    }
     token = null;
     refreshToken = null;
     businessId = null;
+    appUsers = [];
+    appUserUsername = null;
+    appUserRole = null;
+    appUserNombre = null;
     products.clear();
     movements.clear();
     sales.clear();
@@ -848,6 +876,85 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error abriendo navegador: $e');
       return false;
+    }
+  }
+
+  // ====== App Login con mismos usuarios del PC (sesión por dispositivo) ======
+  Future<void> fetchAppUsers() async {
+    if (businessId == null) return;
+    try {
+      final uuid = toValidUuid(businessId!);
+      final url = "$kSupabaseUrl/rest/v1/kiosko_sync_events?negocio_id=eq.$uuid&tipo=eq.usuario_sincronizado&select=datos&order=creado_en.desc&limit=100";
+      final text = await fetchRaw(url, headers: {"apikey": kSupabaseKey, "Authorization": "Bearer $kSupabaseKey"}, timeout: const Duration(seconds: 10));
+      final List list = jsonDecode(text) as List;
+      final Map<String, Map<String, dynamic>> byUser = {};
+      for (final row in list) {
+        final datos = row["datos"];
+        if (datos is Map) {
+          final u = (datos["username"] ?? "").toString().toLowerCase().trim();
+          if (u.isEmpty) continue;
+          // Mantener el más reciente (lista ya en desc, primera gana)
+          byUser.putIfAbsent(u, () => Map<String, dynamic>.from(datos));
+        }
+      }
+      appUsers = byUser.values.where((u) => (u["activo"] ?? 1) == 1).toList();
+      appUsers.sort((a, b) => (a["nombre"] ?? a["username"] ?? "").toString().compareTo((b["nombre"] ?? b["username"] ?? "").toString()));
+      notifyListeners();
+    } catch (e) {
+      debugPrint("fetchAppUsers error: $e");
+    }
+  }
+
+  Future<bool> loginAppUser(String username, String password, {bool keepLogged = false}) async {
+    final u = username.trim().toLowerCase();
+    Map<String, dynamic>? found;
+    for (final x in appUsers) {
+      if ((x["username"] ?? "").toString().toLowerCase() == u) { found = x; break; }
+    }
+    if (found == null) return false;
+    final hash = (found["password_hash"] ?? "").toString();
+    if (hash.isEmpty) return false;
+    bool ok = false;
+    try { ok = BCrypt.checkpw(password, hash); } catch (_) { ok = false; }
+    if (!ok) return false;
+    appUserUsername = found["username"].toString();
+    appUserNombre = (found["nombre"] ?? found["username"]).toString();
+    appUserRole = (found["role"] ?? "vendedor").toString();
+    keepAppSession = keepLogged;
+    final prefs = await SharedPreferences.getInstance();
+    if (keepLogged && businessId != null) {
+      await prefs.setString("appUser_${businessId}_username", appUserUsername!);
+      await prefs.setString("appUser_${businessId}_role", appUserRole!);
+      await prefs.setString("appUser_${businessId}_nombre", appUserNombre!);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> logoutAppUser() async {
+    appUserUsername = null;
+    appUserRole = null;
+    appUserNombre = null;
+    keepAppSession = false;
+    if (businessId != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove("appUser_${businessId}_username");
+      await prefs.remove("appUser_${businessId}_role");
+      await prefs.remove("appUser_${businessId}_nombre");
+    }
+    notifyListeners();
+  }
+
+  Future<void> restoreAppUserSession() async {
+    if (businessId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final u = prefs.getString("appUser_${businessId}_username");
+    if (u != null && u.isNotEmpty) {
+      appUserUsername = u;
+      appUserRole = prefs.getString("appUser_${businessId}_role") ?? "vendedor";
+      appUserNombre = prefs.getString("appUser_${businessId}_nombre") ?? u;
+      keepAppSession = true;
+      notifyListeners();
     }
   }
 }

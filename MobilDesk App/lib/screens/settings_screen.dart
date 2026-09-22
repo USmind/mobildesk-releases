@@ -319,6 +319,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
+          if (s.isAppUserLoggedIn) ...[
+            _sectionTitle('Sesión de Usuario', Icons.person_rounded),
+            const SizedBox(height: 8),
+            Container(
+              padding: DesignTokens.paddingAll('md'),
+              decoration: BoxDecoration(color: DesignTokens.primaryContainer, borderRadius: DesignTokens.borderRadius('md')),
+              child: Row(
+                children: [
+                  Icon(Icons.verified_user_rounded, color: DesignTokens.primary),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('${s.appUserNombre} (${s.appUserUsername}) — ${s.appUserRole}', style: DesignTokens.style('bodyMedium').copyWith(fontWeight: FontWeight.bold))),
+                  TextButton(onPressed: () async { await s.logoutAppUser(); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sesión cerrada. Elige otro usuario.'))); }, child: const Text('Cambiar')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           _sectionTitle('Cerrar Sesión', Icons.logout_rounded),
           const SizedBox(height: 8),
           Text(

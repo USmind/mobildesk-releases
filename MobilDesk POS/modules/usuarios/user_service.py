@@ -1,6 +1,24 @@
 import bcrypt
 from database.connection import get_connection
 
+def _queue_user_sync(username, nombre, password_hash, role, activo):
+    """Sincroniza un usuario a la nube para que la App pueda loguearse igual que en PC."""
+    try:
+        from modules.sync.sync_service import queue_event, get_business_id
+        bid = get_business_id()
+        if not bid:
+            return
+        queue_event("usuario_sincronizado", {
+            "username": username.lower().strip(),
+            "nombre": nombre.strip(),
+            "password_hash": password_hash,
+            "role": role,
+            "activo": int(activo),
+            "negocio_id": bid.strip(),
+        })
+    except Exception:
+        pass
+
 BOOTSTRAP_USERNAME = "__configuracion__"
 
 
@@ -14,7 +32,9 @@ def create_user(nombre, username, password, role):
     try:
         password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         cursor = connection.execute("INSERT INTO users (nombre, username, password_hash, role, activo) VALUES (?, ?, ?, ?, 1)", (nombre, username, password_hash, role))
-        connection.commit(); return cursor.lastrowid
+        connection.commit()
+        _queue_user_sync(username, nombre, password_hash, role, 1)
+        return cursor.lastrowid
     except Exception:
         connection.rollback(); raise
     finally: connection.close()
@@ -95,7 +115,10 @@ def update_user(user_id, nombre, username, role, password=None):
                 "UPDATE users SET nombre = ?, username = ?, role = ? WHERE id = ?",
                 (nombre, username, role, user_id)
             )
+            row = connection.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+            password_hash = row["password_hash"] if row else ""
         connection.commit()
+        _queue_user_sync(username, nombre, password_hash, role, 1)
     except Exception:
         connection.rollback()
         raise
@@ -118,10 +141,33 @@ def delete_user(user_id):
             if admins == 0:
                 raise ValueError("No se puede eliminar el único Administrador del sistema.")
 
+        # Guardar datos para sync antes de borrar
+        _nombre = str(user["nombre"] or "")
+        _username = str(user["username"] or "")
+        _ph = str(user["password_hash"] or "")
+        _role = str(user["role"] or "vendedor")
         connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
         connection.commit()
+        _queue_user_sync(_username, _nombre, _ph, _role, 0)
     except Exception:
         connection.rollback()
         raise
     finally:
         connection.close()
+
+
+def sync_all_users_to_cloud():
+    """Sincroniza todos los usuarios existentes al iniciar, para que la App los vea."""
+    try:
+        users = get_users()
+        for u in users:
+            # get_users no trae password_hash, hay que leerlo
+            conn = get_connection()
+            try:
+                row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (u["id"],)).fetchone()
+                ph = str(row["password_hash"] or "") if row else ""
+            finally:
+                conn.close()
+            _queue_user_sync(str(u["username"] or ""), str(u["nombre"] or ""), ph, str(u["role"] or "vendedor"), int(u["activo"] or 1))
+    except Exception:
+        pass
