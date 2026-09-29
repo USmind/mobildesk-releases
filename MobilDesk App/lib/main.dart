@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'theme/design_tokens.dart';
 import 'services/app_state.dart';
 import 'screens/login_screen.dart';
-import 'screens/user_login_screen.dart';
 import 'screens/main_navigation_screen.dart';
 
 void main() {
@@ -215,13 +214,9 @@ class _KioskoAppState extends State<KioskoApp> {
       home: ListenableBuilder(
         listenable: _appState,
         builder: (context, _) {
-          if (!_appState.isAuthenticated) {
-            return LoginScreen(appState: _appState);
-          }
-          if (_appState.appUsers.isNotEmpty && !_appState.isAppUserLoggedIn) {
-            return UserLoginScreen(state: _appState);
-          }
-          return MainNavigationScreen(state: _appState);
+          return _appState.isAuthenticated
+              ? MainNavigationScreen(state: _appState)
+              : LoginScreen(appState: _appState);
         },
       ),
     );

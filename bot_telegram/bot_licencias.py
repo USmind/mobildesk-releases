@@ -28,8 +28,19 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-# Clave secreta maestra del sistema MobilDesk POS
-MASTER_SECRET = b"KIOSKO_POS_PROTECTED_MASTER_SECRET_2026_V1"
+# Clave secreta maestra del sistema MobilDesk POS.
+# NUNCA hardcodeada: se lee del entorno (Render / .env local).
+def _load_master_secret() -> bytes:
+    valor = os.environ.get("MASTER_SECRET", "").strip()
+    if not valor:
+        raise RuntimeError(
+            "MASTER_SECRET no esta definido. Configuralo en el entorno "
+            "(Render > Environment) antes de arrancar."
+        )
+    return valor.encode("utf-8")
+
+
+MASTER_SECRET = _load_master_secret()
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 

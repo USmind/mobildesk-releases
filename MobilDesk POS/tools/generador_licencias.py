@@ -19,7 +19,27 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-MASTER_SECRET = b"KIOSKO_POS_PROTECTED_MASTER_SECRET_2026_V1"
+
+def _cargar_master_secret() -> bytes:
+    """Lee MASTER_SECRET del entorno. NUNCA se hardcodea en el fuente."""
+    try:
+        from dotenv import load_dotenv
+        from pathlib import Path
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    except ImportError:
+        pass
+    valor = os.environ.get("MASTER_SECRET", "").strip()
+    if not valor:
+        raise SystemExit(
+            "MASTER_SECRET no esta definido.\n\n"
+            "Genera uno con:\n"
+            "  python -c \"import secrets; print(secrets.token_urlsafe(48))\"\n\n"
+            "y guardalo en MobilDesk POS/.env como:\n"
+            "  MASTER_SECRET=<el valor generado>"
+        )
+    return valor.encode("utf-8")
+
+MASTER_SECRET = _cargar_master_secret()
 
 APP_STYLE = """
 QWidget {

@@ -4,8 +4,14 @@ services:
     env: python
     buildCommand: ""
     startCommand: python main.py
+    # IMPORTANTE: los secretos NO van hardcodeados aqui.
+    # Configura en Render Dashboard > Environment las claves:
+    #   BOT_TOKEN            = <token nuevo de BotFather>
+    #   PASSWORD_AUTORIZACION = <contrasena de administracion>
+    #   MASTER_SECRET         = <secreto aleatorio largo>
+    #   LICENSE_API_KEY       = <clave del endpoint /activar>
     envVars:
-      - key: BOT_TOKEN
-        value: 8423198089:AAE88-5Er5Isjlu4_dGGnfsYboqRgv6613k
-      - key: PASSWORD_AUTORIZACION
-        value: mobiladmin2026
+      - key: MASTER_SECRET
+        sync: false
+      - key: LICENSE_API_KEY
+        sync: false

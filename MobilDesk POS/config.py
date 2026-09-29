@@ -36,10 +36,12 @@ def get_env_list(key: str, default: list = None) -> list:
 # ============================================================
 
 # Bot Telegram
-BOT_TOKEN: str = get_env("BOT_TOKEN", required=False)
-PASSWORD_AUTORIZACION: str = get_env("PASSWORD_AUTORIZACION", "mobiladmin2026")
+# NOTA: los secretos NUNCA deben tener un valor por defecto en el codigo.
+# Si faltan, el arranque falla ruidosamente en vez de usar una clave conocida.
+BOT_TOKEN: str = get_env("BOT_TOKEN", required=True)
+PASSWORD_AUTORIZACION: str = get_env("PASSWORD_AUTORIZACION", required=True)
 ADMIN_USER_IDS: list[int] = [int(x) for x in get_env_list("ADMIN_USER_IDS") if x.isdigit()]
-MASTER_SECRET: bytes = get_env("MASTER_SECRET", "KIOSKO_POS_PROTECTED_MASTER_SECRET_2026_V1").encode("utf-8")
+MASTER_SECRET: bytes = get_env("MASTER_SECRET", required=True).encode("utf-8")
 LICENSE_SERVER_URL: str = get_env("LICENSE_SERVER_URL", "https://mobildesk-keybot.onrender.com").rstrip("/")
 
 # Supabase Sync
