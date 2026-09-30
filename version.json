@@ -1,9 +1,10 @@
 {
-  "version": "2.0.32",
-  "pc_version": "2.0.32",
-  "android_version": "1.2.12",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/Instalar-MobilDesk-v2.0.32.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/Instalar-MobilDesk-v2.0.32.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.32/MobilDesk-v1.2.12.apk",
-  "changelog": "Fix descarga App colgada: http con redirect y timeout."
+  "version": "2.0.33",
+  "pc_version": "2.0.33",
+  "android_version": "1.2.13",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.33/Instalar-MobilDesk-v2.0.33.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.33/Instalar-MobilDesk-v2.0.33.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.33/MobilDesk-v1.2.13.apk",
+  "pc_sha256": "3e7b18800ce3f49e943ac53b81188b64153b335433fb64f68cbe3d558724e0b5",
+  "changelog": "Fixes criticos: stock doble en ventas moviles, deudas invisibles, datos de negocio borrados, abonos a factura equivocada, descarga colgada, botones Inventario/Ventas."
 }
