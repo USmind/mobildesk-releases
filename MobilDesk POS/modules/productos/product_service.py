@@ -155,9 +155,22 @@ def create_product(codigo, nombre, unidad, precio_usd, stock_inicial=0, categori
             user_row = cursor.execute("SELECT id FROM users WHERE activo = 1 ORDER BY id ASC LIMIT 1").fetchone()
             uid = user_row["id"] if user_row else None
             if uid is None:
-                cursor.execute("INSERT OR IGNORE INTO users (nombre, username, password_hash, role, activo) VALUES ('Admin', 'admin', 'admin', 'admin', 1)")
+                # Antes insertaba password_hash='admin' en texto plano, lo que
+                # rompía bcrypt.checkpw (excepción al iniciar sesión). Ahora usa un
+                # hash bcrypt de una contraseña aleatoria, inservible para entrar.
+                import secrets as _secrets
+                import bcrypt as _bcrypt
+                _pwd = _secrets.token_urlsafe(32)
+                _hash = _bcrypt.hashpw(_pwd.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+                cursor.execute(
+                    "INSERT OR IGNORE INTO users (nombre, username, password_hash, role, activo) VALUES (?, ?, ?, 'admin', 1)",
+                    ("Admin inicial", "admin", _hash),
+                )
                 user_row = cursor.execute("SELECT id FROM users ORDER BY id ASC LIMIT 1").fetchone()
-                uid = user_row["id"] if user_row else 1
+                uid = user_row["id"] if user_row else None
+            if uid is None:
+                # Sin forma de registrar el movimiento: se omite en vez de inventar un id.
+                return prod_id
 
             cursor.execute("""INSERT INTO inventory_movements
                 (producto_id, tipo, cantidad, costo_usd, motivo, usuario_id)

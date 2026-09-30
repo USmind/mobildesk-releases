@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
-CURRENT_VERSION = "2.0.32"
+CURRENT_VERSION = "2.0.33"
 APP_NAME = "MobilDesk"
 
 # URLs de actualización (GitHub / Servidor)
@@ -52,6 +52,7 @@ def check_remote_version():
                     return {
                         "version": remote_v,
                         "download_url": dl_url,
+                        "sha256": (data.get("pc_sha256") or data.get("sha256") or "").strip(),
                         "changelog": data.get("changelog", "Mejoras de rendimiento y estabilidad."),
                     }
                 return None
@@ -83,10 +84,23 @@ def check_remote_version():
     return None
 
 
-def download_installer(download_url, version_str, progress_callback=None):
+def _sha256_de(path: str) -> str:
+    """SHA-256 de un archivo, por bloques (no carga 32MB en memoria de una vez)."""
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for bloque in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(bloque)
+    return h.hexdigest()
+
+
+def download_installer(download_url, version_str, progress_callback=None, esperado_sha256=""):
     """
-    Descarga el archivo de actualización (.zip o .exe) a la carpeta local reportando progreso (0-100%).
-    Retorna la ruta absoluta del archivo descargado.
+    Descarga la actualización (.zip o .exe) reportando progreso (0-100%).
+
+    Si `esperado_sha256` viene informado, verifica la integridad ANTES de devolver
+    el archivo: si no coincide, lo borra y devuelve None. Sin esto, cualquiera que
+    controle la URL podría servir un .exe arbitrario que se ejecutaría como admin.
     """
     if not download_url:
         return None
@@ -115,6 +129,15 @@ def download_installer(download_url, version_str, progress_callback=None):
                     progress_callback(percent, bytes_downloaded, total_size)
 
     if target_path.exists() and target_path.stat().st_size > 5000:
+        if esperado_sha256:
+            real = _sha256_de(target_path)
+            if real.lower() != esperado_sha256.lower():
+                try:
+                    os.remove(target_path)
+                except OSError:
+                    pass
+                print(f"[actualizador] Hash no coincide. Se descarta la descarga.")
+                return None
         if progress_callback:
             progress_callback(100, target_path.stat().st_size, target_path.stat().st_size)
         return str(target_path)
@@ -217,10 +240,11 @@ class BackgroundUpdateWorker(QThread):
 
             v = info["version"]
             url = info["download_url"]
+            esperado = info.get("sha256", "")
             changelog = info.get("changelog", "Mejoras de rendimiento y estabilidad.")
 
             # Descargar instalador en segundo plano
-            local_installer = download_installer(url, v)
+            local_installer = download_installer(url, v, None, esperado)
             if local_installer:
                 self.update_ready_signal.emit(v, local_installer, changelog)
         except Exception:

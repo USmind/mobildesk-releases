@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/design_tokens.dart';
@@ -95,54 +97,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (confirmed != true || !mounted) return;
 
+    // La descarga se lanza UNA sola vez fuera del builder. Antes se llamaba dentro,
+    // así que cada actualización de progreso relanzaba la descarga completa y se
+    // quedaban varias descargas simultáneas escribiendo el mismo archivo.
+    final progreso = ValueNotifier<double>(0);
+    final descargando = ValueNotifier<bool>(true);
     String? apkPath;
+    String? errorDescarga;
+    BuildContext? dialogContext;
+
+    unawaited(
+      widget.state.downloadApk(info!['download_url'], (percent, downloaded, total) {
+        progreso.value = percent;
+      }).then((path) {
+        apkPath = path;
+        errorDescarga = path == null ? 'No se pudo descargar el archivo.' : null;
+        descargando.value = false;
+        if (dialogContext?.mounted ?? false) Navigator.pop(dialogContext!);
+      }).catchError((e) {
+        errorDescarga = '$e';
+        descargando.value = false;
+        if (dialogContext?.mounted ?? false) Navigator.pop(dialogContext!);
+      }),
+    );
+
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          widget.state.downloadApk(info!['download_url'], (percent, downloaded, total) {
-            setDialogState(() {});
-          }).then((path) {
-            apkPath = path;
-            if (ctx.mounted) Navigator.pop(ctx);
-          });
-          return AlertDialog(
-            title: const Text('Descargando actualización...'),
-            content: Column(
+      builder: (ctx) {
+        dialogContext = ctx;
+        return AlertDialog(
+          title: const Text('Descargando actualización...'),
+          content: ValueListenableBuilder<double>(
+            valueListenable: progreso,
+            builder: (_, percent, __) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const LinearProgressIndicator(),
+                LinearProgressIndicator(value: percent),
                 const SizedBox(height: 12),
-                Text('Descargando APK...', style: DesignTokens.style('bodySmall')),
+                Text('${(percent * 100).toStringAsFixed(0)}% — no cierres la app'),
               ],
             ),
-          );
-        },
-      ),
-    );
+          ),
+          actions: [
+            ValueListenableBuilder<bool>(
+              valueListenable: descargando,
+              builder: (_, busy, __) => TextButton(
+                onPressed: busy ? null : () => Navigator.pop(ctx),
+                child: const Text('Cerrar'),
+              ),
+            ),
+          ],
+        );
+      },
+    ).then((_) => descargando.value = false);
 
     if (!mounted) return;
     if (apkPath == null) {
       // Fallback: abrir en navegador para descarga manual
       try {
-        final uri = Uri.parse(info['download_url']);
-        // ignore: use_build_context_synchronously
+        final uri = Uri.parse(info!['download_url']);
         final ok = await widget.state.openDownloadInBrowser(uri.toString());
         if (!mounted) return;
-        if (ok) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Descarga iniciada en el navegador. Instala el APK descargado.')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al descargar. Intenta manual: github.com/USmind/mobildesk-releases')),
-          );
-        }
-      } catch (_) {
+        final detalle = errorDescarga == null ? '' : ' ($errorDescarga)';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ok
+                  ? 'Se abrió el navegador para que instales manualmente.$detalle'
+                  : 'No se pudo iniciar la descarga.$detalle',
+            ),
+          ),
+        );
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al descargar la actualización.')),
+            SnackBar(content: Text('Error al descargar: $e')),
           );
         }
       }

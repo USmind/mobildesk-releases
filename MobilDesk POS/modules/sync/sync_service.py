@@ -219,8 +219,11 @@ def _queue_initial_snapshot(connection):
         queue_event_with_connection(connection, "producto_guardado", dict(product))
 
     # 4. Movimientos de Inventario
+    # El "id" del snapshot permite que el móvil no duplique si se re-encola todo
+    # (p. ej. al cambiar el código de negocio).
     movements = connection.execute(
-        """SELECT p.codigo AS producto_codigo, im.tipo, im.cantidad, im.costo_usd, im.motivo, im.fecha
+        """SELECT p.codigo AS producto_codigo, im.tipo, im.cantidad, im.costo_usd, im.motivo, im.fecha,
+                  'snap-' || im.id AS id_snapshot
            FROM inventory_movements im JOIN products p ON p.id=im.producto_id
            ORDER BY im.id"""
     ).fetchall()
@@ -251,10 +254,24 @@ def _queue_initial_snapshot(connection):
 
 
 def _user_id(connection):
+    # Antes, si la tabla users estaba vacía, hacia .fetchone()["id"] sobre None y
+    # lanzaba TypeError, abortando TODA la sincronización. Ahora crea un usuario
+    # técnico si hace falta y devuelve siempre un id válido.
     row = connection.execute("SELECT id FROM users WHERE username != ? ORDER BY id LIMIT 1", ("__configuracion__",)).fetchone()
     if row is not None:
         return row["id"]
-    return connection.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()["id"]
+    row = connection.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()
+    if row is not None:
+        return row["id"]
+    cur = connection.execute(
+        "INSERT OR IGNORE INTO users (nombre, username, password_hash, role, activo) VALUES (?, ?, ?, 'admin', 1)",
+        ("Sincronización", "__sync__", "no-login"),
+    )
+    nuevo = connection.execute("SELECT id FROM users WHERE username='__sync__'").fetchone()
+    if nuevo is not None:
+        connection.commit()
+        return nuevo["id"]
+    return cur.lastrowid
 
 
 def _get_or_create_category_id(connection, nombre):
@@ -305,43 +322,60 @@ def _apply_remote_event(connection, event):
     data, kind = event["datos"] or {}, event["tipo"]
 
     if kind == "tasa_cambio_actualizada":
-        tasa = float(data.get("tasa") or 0)
-        margen = float(data.get("margen") or 0)
-        if tasa > 0:
-            connection.execute(
-                "INSERT INTO exchange_rates(valor, usuario_id) VALUES(?, ?)",
-                (tasa, _user_id(connection)),
-            )
-        if margen >= 0:
+        # Solo actualizar el margen si el evento lo trae. Si no viene, NO ponerlo en 0
+        # (eso borra el margen de ganancia configurado).
+        if "tasa" in data:
+            tasa = float(data.get("tasa") or 0)
+            if tasa > 0:
+                connection.execute(
+                    "INSERT INTO exchange_rates(valor, usuario_id) VALUES(?, ?)",
+                    (tasa, _user_id(connection)),
+                )
+        if "margen" in data and data.get("margen") is not None:
             connection.execute(
                 "UPDATE pricing_settings SET porcentaje_ganancia=? WHERE id=1",
-                (margen,),
+                (float(data["margen"]),),
             )
     elif kind == "negocio_config_actualizada":
-        nombre = data.get("nombre_negocio") or "MOBILDESK"
-        connection.execute(
-            """INSERT INTO business_settings (id, nombre_negocio, identificacion, telefono, direccion, mensaje_ticket)
-               VALUES (1, ?, ?, ?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET
-                   nombre_negocio = excluded.nombre_negocio,
-                   identificacion = excluded.identificacion,
-                   telefono = excluded.telefono,
-                   direccion = excluded.direccion,
-                   mensaje_ticket = excluded.mensaje_ticket""",
-            (
-                nombre,
-                data.get("identificacion", ""),
-                data.get("telefono", ""),
-                data.get("direccion", ""),
-                data.get("mensaje_ticket", "¡Gracias por su compra!"),
-            ),
-        )
+        # La app móvil solo envía nombre_negocio. NO sobreescribir los demás campos
+        # (identificacion/telefono/direccion/mensaje_ticket) si el evento no los trae,
+        # porque se perderían los datos del negocio.
+        campos = {"nombre_negocio": data.get("nombre_negocio")}
+        opcionales = {
+            "identificacion": data.get("identificacion"),
+            "telefono": data.get("telefono"),
+            "direccion": data.get("direccion"),
+            "mensaje_ticket": data.get("mensaje_ticket"),
+        }
+        sets = ["nombre_negocio=?"]
+        params = [campos["nombre_negocio"] or "MOBILDESK"]
+        for clave, valor in opcionales.items():
+            if valor is not None:
+                sets.append(f"{clave}=?")
+                params.append(valor)
+        row = connection.execute("SELECT * FROM business_settings WHERE id=1").fetchone()
+        if row is None:
+            connection.execute(
+                """INSERT INTO business_settings (id, nombre_negocio, identificacion, telefono, direccion, mensaje_ticket)
+                   VALUES (1, ?, ?, ?, ?, ?)""",
+                (
+                    params[0],
+                    opcionales.get("identificacion") or "",
+                    opcionales.get("telefono") or "",
+                    opcionales.get("direccion") or "",
+                    opcionales.get("mensaje_ticket") or "¡Gracias por su compra!",
+                ),
+            )
+        else:
+            connection.execute(f"UPDATE business_settings SET {', '.join(sets)} WHERE id=1", params)
     elif kind == "producto_guardado":
         code = data.get("codigo")
         if not code:
             return False
         current = connection.execute("SELECT id FROM products WHERE codigo=?", (code,)).fetchone()
-        codigo_barras = data.get("codigo_barras")
+        # Solo sobrescribir codigo_barras si el evento lo trae; si falta, preservarlo.
+        codigo_barras = data.get("codigo_barras") if "codigo_barras" in data else None
+        overwrite_barcode = "codigo_barras" in data
         values = (
             data.get("nombre", "Producto"),
             data.get("marca", ""),
@@ -364,9 +398,13 @@ def _apply_remote_event(connection, event):
             proveedor_id = None
         tiene_proveedor = _products_has_proveedor(connection)
         if current:
+            base_sets = ["nombre=?", "marca=?", "unidad=?", "precio_usd=?", "stock_minimo=?", "activo=?"]
+            if overwrite_barcode:
+                base_sets.append("codigo_barras=?")
+            base_params = list(values) + ([codigo_barras] if overwrite_barcode else [])
             if trae_categoria or trae_proveedor:
-                sets = ["nombre=?", "marca=?", "unidad=?", "precio_usd=?", "stock_minimo=?", "activo=?", "codigo_barras=?"]
-                params = [*values, codigo_barras]
+                sets = list(base_sets)
+                params = list(base_params)
                 if trae_categoria:
                     sets.append("categoria_id=?")
                     params.append(categoria_id)
@@ -376,10 +414,9 @@ def _apply_remote_event(connection, event):
                 params.append(current["id"])
                 connection.execute(f"UPDATE products SET {', '.join(sets)} WHERE id=?", params)
             else:
-                connection.execute(
-                    "UPDATE products SET nombre=?, marca=?, unidad=?, precio_usd=?, stock_minimo=?, activo=?, codigo_barras=? WHERE id=?",
-                    (*values, codigo_barras, current["id"]),
-                )
+                sets = base_sets
+                params = base_params + [current["id"]]
+                connection.execute(f"UPDATE products SET {', '.join(sets)} WHERE id=?", params)
         else:
             if tiene_proveedor:
                 connection.execute(
@@ -398,6 +435,20 @@ def _apply_remote_event(connection, event):
     elif kind == "producto_eliminado":
         connection.execute("UPDATE products SET activo=0 WHERE codigo=?", (data.get("codigo"),))
     elif kind == "movimiento_inventario":
+        # La app móvil envía un 'movimiento_inventario' por cada ítem vendido, pero
+        # el evento 'venta_registrada' YA descuenta el stock (más abajo). Si aplicáramos
+        # ambos, el stock del PC se descontaría el doble. Solo aplicamos movimientos
+        # que NO provienen de una venta (entradas, ajustes, correcciones manuales).
+        motivo = str(data.get("motivo") or "").lower()
+        es_venta = (
+            data.get("venta_id")
+            or motivo.startswith("venta móvil")
+            or motivo.startswith("venta movil")
+            or motivo.startswith("venta sincronizada")
+        )
+        if es_venta:
+            connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (event["id"],))
+            return True
         product = connection.execute("SELECT id FROM products WHERE codigo=?", (data.get("producto_codigo"),)).fetchone()
         if product:
             connection.execute(
@@ -429,8 +480,8 @@ def _apply_remote_event(connection, event):
 
             cursor = connection.execute(
                 """INSERT INTO sales(numero_factura,usuario_id,tasa_utilizada,total_usd,total_bs,metodo_pago,
-                                     monto_recibido_bs,vuelto_bs,monto_recibido_usd,vuelto_usd,cliente_id,es_fiada)
-                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                     monto_recibido_bs,vuelto_bs,monto_recibido_usd,vuelto_usd,cliente_id,es_fiada,pagos_detalle,fecha)
+                   VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     invoice,
                     _user_id(connection),
@@ -444,15 +495,39 @@ def _apply_remote_event(connection, event):
                     float(data.get("vuelto_usd") or 0),
                     cliente_id,
                     int(es_fiada),
+                    data.get("pagos_detalle"),
+                    data.get("fecha") or _now(),
                 ),
             )
             sale_id = cursor.lastrowid
 
             if es_fiada and cliente_id:
-                saldo_bs = float(data.get("saldo_pendiente") or data.get("total_bs") or 0)
+                # La app manda total_usd; si falta, derivarlo de la tasa para no dejar
+                # saldo_usd en 0 (eso oculta la deuda en "Cuentas por Cobrar").
+                tasa_venta = float(data.get("tasa") or 0)
+                total_usd_deuda = float(data.get("total_usd") or 0)
+                if total_usd_deuda <= 0 and tasa_venta > 0:
+                    total_usd_deuda = float(data.get("total_bs") or 0) / tasa_venta
+                total_bs_deuda = float(data.get("total_bs") or 0)
+                saldo_bs = float(data.get("saldo_pendiente") or total_bs_deuda or 0)
+                # saldo_usd proporcional al saldo_bs, o el total_usd si esta pagada.
+                if saldo_bs > 0 and total_bs_deuda > 0:
+                    saldo_usd = total_usd_deuda * (saldo_bs / total_bs_deuda)
+                else:
+                    saldo_usd = 0.0
                 connection.execute(
-                    "INSERT INTO credit_debts(venta_id, cliente_id, total_bs, saldo_bs, estado) VALUES(?, ?, ?, ?, ?)",
-                    (sale_id, cliente_id, float(data.get("total_bs") or 0), saldo_bs, "pagada" if saldo_bs <= 0 else "pendiente"),
+                    """INSERT INTO credit_debts(venta_id, cliente_id, total_bs, saldo_bs, total_usd, saldo_usd, tasa_registro, estado)
+                       VALUES(?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        sale_id,
+                        cliente_id,
+                        total_bs_deuda,
+                        saldo_bs,
+                        total_usd_deuda,
+                        saldo_usd,
+                        tasa_venta or None,
+                        "pagada" if saldo_bs <= 0 else "pendiente",
+                    ),
                 )
 
             for item in data.get("productos", []):

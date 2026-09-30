@@ -226,9 +226,19 @@ def validar_clave_en_servidor(machine_id: str, clave: str, timeout: int = 10) ->
 def _revalidar_silenciosa(clave: str, machine_id: str):
     """
     Cada REVALIDACION_DIAS días, confirma la clave contra el servidor.
-    Si no hay Internet, simplemente registra el intento y sigue funcionando normal.
-    Nunca lanza excepciones ni interrumpe el arranque del sistema.
+    Se ejecuta en un hilo aparte: la validación hace una llamada de red de hasta
+    5s y, si fuera síncrona, congelaría la interfaz cada vez que el usuario
+    abría un módulo. Nunca lanza excepciones ni interrumpe el arranque.
     """
+    import threading
+    threading.Thread(
+        target=_revalidar_silenciosa_sync,
+        args=(clave, machine_id),
+        daemon=True,
+    ).start()
+
+
+def _revalidar_silenciosa_sync(clave: str, machine_id: str):
     conn = None
     try:
         conn = get_connection()
@@ -264,8 +274,23 @@ def _revalidar_silenciosa(clave: str, machine_id: str):
             plan_db = "vitalicio" if plan_cod == "V" else {"M": "mensual", "A": "anual"}.get(plan_cod, "demo_extendida")
             estado_nube = "vitalicio" if plan_db == "vitalicio" else "activo"
             _publicar_licencia_nube(conn, estado_nube, plan_db, exp_iso)
+        elif estado == "anulada":
+            # El administrador revocó o anuló la clave (ver comando /darbaja del bot).
+            # Antes solo se registraba el intento y el sistema seguía operando.
+            print(f"[LICENCIA] Clave ANULADA por el administrador: {machine_id}")
+            cursor.execute(
+                """
+                UPDATE system_license
+                SET fecha_expiracion = ?, ultima_verificacion = ?
+                WHERE id = 1
+                """,
+                (datetime.fromtimestamp(0).isoformat(), now.isoformat()),
+            )
+            _publicar_licencia_nube(conn, "expirado", "demo_extendida", datetime.fromtimestamp(0).isoformat())
         else:
             # Sin conexión o rechazo puntual: solo registrar el intento.
+            # NO se pisa fecha_expiracion para no dejar el sistema sin licencia
+            # si fue un fallo de red.
             cursor.execute(
                 "UPDATE system_license SET ultima_verificacion = ? WHERE id = 1",
                 (now.isoformat(),)

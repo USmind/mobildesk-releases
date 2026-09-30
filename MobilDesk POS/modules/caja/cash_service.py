@@ -164,6 +164,11 @@ def get_cash_register_summary(caja_id):
         total_ventas_bs = 0.0
         total_ventas_usd = 0.0
         cantidad_ventas = len(sales_rows)
+        # El vuelto sale del cajero pero no queda como ingreso: hay que restarlo
+        # del esperado, si no el arqueo reporta un faltante falso en cada venta
+        # en efectivo que dio cambio.
+        vuelto_total_bs = 0.0
+        vuelto_total_usd = 0.0
 
         for s in sales_rows:
             metodo = s["metodo_pago"]
@@ -197,6 +202,18 @@ def get_cash_register_summary(caja_id):
                 ventas_por_metodo["divisas_usd"] += t_usd
                 ventas_por_metodo["divisas_bs"] += t_bs
 
+            # Acumular vuelto para descontarlo del arqueo.
+            if metodo == "mixto" and s["pagos_detalle"]:
+                try:
+                    _det = json.loads(s["pagos_detalle"]) if isinstance(s["pagos_detalle"], str) else s["pagos_detalle"]
+                except Exception:
+                    _det = {}
+                vuelto_total_bs += float(_det.get("vuelto_bs") or 0)
+                vuelto_total_usd += float(_det.get("vuelto_usd") or 0)
+            else:
+                vuelto_total_bs += float(s["vuelto_bs"] or 0)
+                vuelto_total_usd += float(s["vuelto_usd"] or 0)
+
         # Movements
         movements = get_cash_movements(caja_id)
         entradas_bs = sum(m["monto"] for m in movements if m["tipo"] == "entrada" and m["moneda"] == "Bs")
@@ -207,9 +224,9 @@ def get_cash_register_summary(caja_id):
         monto_inicial_bs = float(caja["monto_inicial_bs"] or 0)
         monto_inicial_usd = float(caja["monto_inicial_usd"] or 0)
 
-        # Expected in drawer
-        esperado_bs = monto_inicial_bs + ventas_por_metodo["efectivo"] + entradas_bs - salidas_bs
-        esperado_usd = monto_inicial_usd + ventas_por_metodo["divisas_usd"] + entradas_usd - salidas_usd
+        # Expected in drawer (el vuelto que salio del cajero se resta)
+        esperado_bs = monto_inicial_bs + ventas_por_metodo["efectivo"] + entradas_bs - salidas_bs - vuelto_total_bs
+        esperado_usd = monto_inicial_usd + ventas_por_metodo["divisas_usd"] + entradas_usd - salidas_usd - vuelto_total_usd
 
         return {
             "caja": caja,

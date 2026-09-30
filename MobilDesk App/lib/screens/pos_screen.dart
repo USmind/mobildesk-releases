@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/design_tokens.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
-import '../widgets/dialogs.dart';
 import '../widgets/states.dart';
 import '../utils.dart';
 import 'scanner_screen.dart';
@@ -37,6 +36,14 @@ class _PosScreenState extends State<PosScreen> {
     super.initState();
     _consumirClienteParaFiar();
     _clientNameController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(covariant PosScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Cubre el caso en que la pantalla ya estaba montada cuando llega el cliente
+    // desde Cobrar/Fiados (initState ya habia corrido).
+    _consumirClienteParaFiar();
   }
 
   /// Si viene de Cobrar/Fiados con "Agregar a su cuenta", precarga el cliente.
@@ -526,12 +533,10 @@ class _PosScreenState extends State<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Consumir "Agregar a su cuenta" aunque el State ya existiera.
-    if (widget.state.clienteParaFiar != null && widget.state.clienteParaFiar!.trim().isNotEmpty) {
-      _clientNameController.text = widget.state.clienteParaFiar!.trim();
-      _paymentMethod = 'fiado';
-      widget.state.clienteParaFiar = null;
-    }
+    // No consumir "Agregar a su cuenta" dentro de build(): el listener de
+    // _clientNameController dispara setState() mientras se construye el árbol,
+    // lo que lanza "setState() called during build" y rompe la pantalla.
+    // Se resuelve en initState (via _consumirClienteParaFiar) y en didUpdateWidget.
     final searchQuery = _productSearchController.text.trim().toLowerCase();
     final suggestions = searchQuery.isEmpty
         ? const <Product>[]

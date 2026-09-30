@@ -44,7 +44,16 @@ def authenticate(username, password):
     connection = get_connection()
     try: user = connection.execute("SELECT * FROM users WHERE username = ? AND activo = 1", (username.strip(),)).fetchone()
     finally: connection.close()
-    return user if user and bcrypt.checkpw(password.encode("utf-8"), user[3].encode("utf-8")) else None
+    if not user:
+        return None
+    stored = user["password_hash"] or ""
+    # Un hash corrupto o en texto plano no debe romper el arranque: login fallido limpio.
+    if not stored.startswith(("$2a$", "$2b$", "$2y$")):
+        return None
+    try:
+        return user if bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8")) else None
+    except (ValueError, TypeError):
+        return None
 
 
 def get_users():

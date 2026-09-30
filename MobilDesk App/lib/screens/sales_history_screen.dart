@@ -112,7 +112,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                     ? double.tryParse(usdCtrl.text.replaceAll(',', '.'))
                     : null;
 
-                widget.state.recordDebtPayment(sale.id, amount, metodo: metodo, montoUsd: montoUsd);
+                widget.state.recordDebtPayment(sale.numeroFactura, amount, metodo: metodo, montoUsd: montoUsd);
                 Navigator.pop(ctx);
                 showSuccessDialog(context, title: 'Registrado', message: 'Pago de deuda registrado correctamente.');
               },
@@ -304,7 +304,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                   if (totalUsd != null && totalUsd > 0 && amount > 0) {
                     abonoUsd = abono * totalUsd / amount;
                   }
-                  widget.state.recordDebtPayment(sale.id, abono, metodo: metodo, montoUsd: abonoUsd);
+                  widget.state.recordDebtPayment(sale.numeroFactura, abono, metodo: metodo, montoUsd: abonoUsd);
                   restante -= abono;
                   afectadas++;
                 }
@@ -427,7 +427,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                             ),
                             DesignTokens.spaceSm.height,
                             ...facturas.map((f) {
-                              final fExpanded = _expandedFacturas.contains(f.id);
+                              final fExpanded = _expandedFacturas.contains(f.numeroFactura);
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Column(
@@ -451,9 +451,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                                           ),
                                           onPressed: () => setState(() {
                                             if (fExpanded) {
-                                              _expandedFacturas.remove(f.id);
+                                              _expandedFacturas.remove(f.numeroFactura);
                                             } else {
-                                              _expandedFacturas.add(f.id);
+                                              _expandedFacturas.add(f.numeroFactura);
                                             }
                                           }),
                                           child: Text(fExpanded ? 'Ocultar' : 'Productos'),
@@ -587,7 +587,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                   itemCount: creditSales.length,
                   itemBuilder: (ctx, i) {
                     final sale = creditSales[i];
-                    final expanded = _expandedFacturas.contains(sale.id);
+                    final expanded = _expandedFacturas.contains(sale.numeroFactura);
                     return Card(
                       elevation: 0,
                       margin: DesignTokens.paddingOnly(bottom: 'sm'),
@@ -654,9 +654,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                                       ),
                                       onPressed: () => setState(() {
                                         if (expanded) {
-                                          _expandedFacturas.remove(sale.id);
+                                          _expandedFacturas.remove(sale.numeroFactura);
                                         } else {
-                                          _expandedFacturas.add(sale.id);
+                                          _expandedFacturas.add(sale.numeroFactura);
                                         }
                                       }),
                                       child: Text(expanded ? 'Ocultar productos' : 'Ver productos (${sale.productos.length})'),

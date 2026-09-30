@@ -96,25 +96,34 @@ class DashboardWindow(QMainWindow):
             return
 
         self._update_installer_path = installer_path
-        self._update_countdown = 15
 
-        self.btn_update_badge = QPushButton(f"  Actualización v{version} lista — Reiniciando en {self._update_countdown}s  ")
+        # Antes se reiniciaba SOLO a los 15s sin preguntar, ejecutando el instalador
+        # como administrador sin confirmación. Ahora se avisa y se decide.
+        self.btn_update_badge = QPushButton(f"  Actualización v{version} lista  ")
         self.btn_update_badge.setProperty("variant", "success")
-        self.btn_update_badge.setToolTip(f"{changelog}\n\nHaz clic para reiniciar ahora")
-        self.btn_update_badge.clicked.connect(lambda: self._aplicar_actualizacion_inmediata())
+        self.btn_update_badge.setToolTip(f"{changelog}\n\nHaz clic para instalar ahora")
+        self.btn_update_badge.clicked.connect(lambda: self._preguntar_actualizacion(version, installer_path, changelog))
         self.header_pos.insertWidget(self.header_pos.count() - 1, self.btn_update_badge)
 
-        self._countdown_timer = QTimer(self)
-        self._countdown_timer.timeout.connect(lambda: self._tick_countdown(version))
-        self._countdown_timer.start(1000)
-
-    def _tick_countdown(self, version):
-        self._update_countdown -= 1
-        if self._update_countdown <= 0:
-            self._countdown_timer.stop()
+    def _preguntar_actualizacion(self, version, installer_path, changelog):
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f"Actualización disponible (v{version})")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(
+            f"<h3>Hay una nueva versión de MobilDesk POS</h3>"
+            f"<p><b>Versión instalada:</b> v{CURRENT_VERSION} &nbsp;·&nbsp; <b>Disponible:</b> v{version}</p>"
+            f"<p><b>Novedades:</b><br>{changelog}</p>"
+            f"<hr>"
+            f"<p>El sistema se cerrará y se instalará la actualización. "
+            f"<b>Tus productos, ventas y configuraciones se conservarán intactos.</b></p>"
+        )
+        btn_ahora = msg.addButton("Actualizar Ahora", QMessageBox.YesRole)
+        btn_ahora.setProperty("variant", "success")
+        btn_luego = msg.addButton("Más Tarde", QMessageBox.NoRole)
+        btn_luego.setProperty("variant", "ghost")
+        msg.exec()
+        if msg.clickedButton() == btn_ahora:
             self._aplicar_actualizacion_inmediata()
-            return
-        self.btn_update_badge.setText(f"  Actualización v{version} lista — Reiniciando en {self._update_countdown}s  ")
 
     def _aplicar_actualizacion_inmediata(self):
         if hasattr(self, "_countdown_timer") and self._countdown_timer:

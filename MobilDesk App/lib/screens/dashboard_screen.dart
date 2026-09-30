@@ -287,7 +287,9 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.add_box_rounded,
                     label: 'Inventario',
                     color: DesignTokens.secondary,
-                    onTap: () => onNavigateTab(3),
+                    // Pestaña 2 = Inventario (0=Inicio, 1=Vender, 2=Inventario,
+                    // 3=Ventas, 4=Ajustes). Antes iba a 3 (Ventas).
+                    onTap: () => onNavigateTab(2),
                   ),
                 ),
               ],
@@ -306,7 +308,8 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => onNavigateTab(4),
+                  // Pestaña 3 = Ventas. Antes iba a 4 (Ajustes).
+                  onPressed: () => onNavigateTab(3),
                   child: Text('Ver todas', style: DesignTokens.style('labelLarge').copyWith(color: DesignTokens.primary)),
                 ),
               ],

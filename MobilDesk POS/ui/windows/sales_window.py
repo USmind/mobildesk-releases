@@ -1231,6 +1231,8 @@ class SalesHistoryWindow(QWidget):
         self.btn_todas.clicked.connect(lambda: self._set_filtro("todas"))
         self.btn_hoy = QPushButton("Solo Hoy")
         self.btn_hoy.setToolTip("Mostrar solo las ventas de hoy")
+        # Antes faltaba esta conexion: el boton no hacia nada.
+        self.btn_hoy.clicked.connect(lambda: self._set_filtro("hoy"))
 
         search_layout.addWidget(self.btn_todas)
         search_layout.addWidget(self.btn_hoy)

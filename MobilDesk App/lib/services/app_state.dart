@@ -75,7 +75,14 @@ class AppState extends ChangeNotifier {
     if (licEstado == 'expirado') return true;
     if (licEstado == 'activo' || licEstado == 'demo') {
       final exp = _licExpiracion;
-      if (exp == null) return false;
+      // Si dice activa pero no hay fecha, el PC aún no la sincronizó.
+      // Antes devolvía false y dejaba la app desbloqueada indefinidamente.
+      // Ahora cae a la prueba local de 7 días.
+      if (exp == null) {
+        final fi0 = firstInstall;
+        if (fi0 == null) return true;
+        return DateTime.now().isAfter(fi0.add(const Duration(days: 7)));
+      }
       return DateTime.now().isAfter(exp);
     }
     // Sin informacion del PC: prueba local de 7 dias desde la instalacion.
@@ -314,8 +321,14 @@ class AppState extends ChangeNotifier {
     sync();
   }
 
-  void recordDebtPayment(String saleId, double amountPaid, {String? metodo, double? montoUsd}) {
-    final idx = sales.indexWhere((s) => s.id == saleId);
+  void recordDebtPayment(String saleKey, double amountPaid, {String? metodo, double? montoUsd}) {
+    // Buscar por numero_factura (unico y presente). Antes buscaba por id, que llega
+    // vacio desde el PC y desde el movil, por lo que SIEMPRE terminaba en la primera
+    // venta de la lista y los abonos se aplicaban a la factura equivocada.
+    final idx = sales.indexWhere(
+      (s) => (saleKey.isNotEmpty && s.numeroFactura == saleKey) ||
+          (saleKey.isEmpty && s.id.isNotEmpty && s.id.isNotEmpty),
+    );
     if (idx >= 0) {
       final old = sales[idx];
       final newBalance = (old.saldoPendiente - amountPaid).clamp(0.0, double.infinity);
@@ -418,12 +431,10 @@ class AppState extends ChangeNotifier {
     } else if (tipo == 'movimiento_inventario') {
       final mov = InventoryMovement.fromMap(datos);
       final movId = (id != null && id.isNotEmpty) ? id : (datos['id']?.toString() ?? mov.id);
-      final isDuplicate = movements.any((m) =>
-          (movId.isNotEmpty && m.id == movId) ||
-          (m.productoCodigo == mov.productoCodigo &&
-              m.tipo == mov.tipo &&
-              m.cantidad == mov.cantidad &&
-              m.fecha == mov.fecha));
+      // Deduplicar solo por id estable (el snapshot del PC manda 'snap-<id>').
+      // Antes se comparaban producto+tipo+cantidad+fecha, lo que fusionaba dos
+      // movimientos LEGÍTIMOS que casualmente coincidían.
+      final isDuplicate = movId.isNotEmpty && movements.any((m) => m.id == movId);
       if (!isDuplicate) {
         movements.add(InventoryMovement(
           id: movId,
