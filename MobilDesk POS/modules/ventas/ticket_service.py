@@ -1,4 +1,4 @@
-import json
+﻿import json
 from database.connection import get_connection
 from modules.configuracion.business_service import get_business_settings
 
@@ -12,7 +12,8 @@ def get_sale_ticket_data(sale_id_or_invoice):
                 SELECT s.*, u.nombre AS usuario_nombre,
                        c.nombre AS cliente_nombre, c.cedula AS cliente_cedula,
                        c.telefono AS cliente_telefono, c.direccion AS cliente_direccion,
-                       d.saldo_bs AS deuda_saldo_bs
+                       d.saldo_bs AS deuda_saldo_bs,
+                       d.saldo_usd AS deuda_saldo_usd
                 FROM sales s
                 LEFT JOIN users u ON s.usuario_id = u.id
                 LEFT JOIN clients c ON s.cliente_id = c.id
@@ -27,7 +28,8 @@ def get_sale_ticket_data(sale_id_or_invoice):
                 SELECT s.*, u.nombre AS usuario_nombre,
                        c.nombre AS cliente_nombre, c.cedula AS cliente_cedula,
                        c.telefono AS cliente_telefono, c.direccion AS cliente_direccion,
-                       d.saldo_bs AS deuda_saldo_bs
+                       d.saldo_bs AS deuda_saldo_bs,
+                       d.saldo_usd AS deuda_saldo_usd
                 FROM sales s
                 LEFT JOIN users u ON s.usuario_id = u.id
                 LEFT JOIN clients c ON s.cliente_id = c.id
@@ -138,8 +140,23 @@ def generate_sale_ticket_text(sale_id_or_invoice, width=42):
             if vuelto_usd > 0:
                 output.append(f"  VUELTO USD:     ${vuelto_usd:,.2f}")
     elif data["es_fiada"]:
-        saldo = float(data.get("deuda_saldo_bs") or total_bs)
-        output.append(f"ESTADO: FIADO (Pendiente Bs {saldo:,.2f})")
+        # El saldo pendiente se refleja a la TASA ACTUAL (saldo_usd es la fuente de
+        # verdad). Antes usaba el saldo_bs congelado al momento de la venta, por lo
+        # que el ticket mostraba una cifra distinta a la de la pantalla de Fiados.
+        try:
+            from modules.configuracion.exchange_rate_service import get_current_rate_value
+            tasa_actual = float(get_current_rate_value() or 0)
+        except Exception:
+            tasa_actual = 0.0
+        saldo_usd_deuda = float(data.get("deuda_saldo_usd") or 0)
+        if saldo_usd_deuda > 0 and tasa_actual > 0:
+            saldo = round(saldo_usd_deuda * tasa_actual, 2)
+            output.append(f"ESTADO: FIADO (Pendiente Bs {saldo:,.2f} · ${saldo_usd_deuda:,.2f})")
+            if abs(tasa_actual - tasa) > 0.01:
+                output.append(f"  (tasa de la venta Bs {tasa:,.2f} · tasa actual Bs {tasa_actual:,.2f})")
+        else:
+            saldo = float(data.get("deuda_saldo_bs") or total_bs)
+            output.append(f"ESTADO: FIADO (Pendiente Bs {saldo:,.2f})")
     elif data["metodo_pago"] == "efectivo":
         recibido = float(data["monto_recibido_bs"] or total_bs)
         vuelto = float(data["vuelto_bs"] or 0)

@@ -28,13 +28,14 @@ from modules.configuracion.exchange_rate_service import get_current_rate_value
 class AbonoDialog(QDialog):
     """Diálogo minimalista y limpio para registrar abonos de dinero a fiados."""
 
-    def __init__(self, deuda_id, cliente, factura, saldo_actual, total_venta, parent=None):
+    def __init__(self, deuda_id, cliente, factura, saldo_actual, total_venta, parent=None, tasa=0):
         super().__init__(parent)
         self.deuda_id = deuda_id
         self.cliente = cliente
         self.factura = factura
         self.saldo_actual = float(saldo_actual)
         self.total_venta = float(total_venta)
+        self.tasa = float(tasa or 0)
         self.monto_ingresado = 0.0
 
         self.setWindowTitle("Registrar Abono a Fiado")
@@ -81,6 +82,24 @@ class AbonoDialog(QDialog):
         row_sal.addStretch()
         row_sal.addWidget(lbl_sal)
         c_layout.addLayout(row_sal)
+
+        # La deuda se refleja a la tasa vigente: mostrarla evita confusiones
+        # cuando el cliente dice "me deben menos" y la cifra no coincide.
+        if self.tasa > 0:
+            row_tasa = QHBoxLayout()
+            row_tasa.addWidget(QLabel("Tasa aplicada:"))
+            lbl_tasa = QLabel(f"1 USD = Bs {self.tasa:,.2f}")
+            lbl_tasa.setObjectName("pageSubtitle")
+            row_tasa.addStretch()
+            row_tasa.addWidget(lbl_tasa)
+            c_layout.addLayout(row_tasa)
+            row_usd = QHBoxLayout()
+            row_usd.addWidget(QLabel("Equivale a:"))
+            lbl_usd = QLabel(f"${self.saldo_actual / self.tasa:,.2f}")
+            lbl_usd.setObjectName("pageSubtitle")
+            row_usd.addStretch()
+            row_usd.addWidget(lbl_usd)
+            c_layout.addLayout(row_usd)
 
         layout.addWidget(card)
 
@@ -341,7 +360,22 @@ class DetalleClienteDialog(QDialog):
                 p_usd = float(it.get("precio_usd") or 0)
             except Exception:
                 p_usd = 0
-            p_bs = p_usd * rate if rate else 0
+            # Los productos se valoran a la tasa de la VENTA (su precio histórico),
+            # no a la tasa actual: si no, los subtotales no cuadran con el total de
+            # la factura y el cliente ve productos "distintos" a los que compró.
+            try:
+                tasa_venta = float(f.get("tasa_registro") or 0)
+            except Exception:
+                tasa_venta = 0
+            if not tasa_venta:
+                try:
+                    det_f = get_debt_detail(int(f["id"]))
+                    tasa_venta = float(det_f.get("deuda", {}).get("tasa_registro") or 0)
+                except Exception:
+                    tasa_venta = 0
+            tasa_productos = tasa_venta or rate
+
+            p_bs = p_usd * tasa_productos if tasa_productos else 0
             row = self.tabla_productos.rowCount()
             self.tabla_productos.insertRow(row)
             self.tabla_productos.setItem(row, 0, QTableWidgetItem(f"{cant:g}"))
@@ -381,7 +415,7 @@ class DetalleClienteDialog(QDialog):
         if saldo_bs <= 0.001:
             QMessageBox.information(self, "Aviso", "Esta factura ya se encuentra 100% pagada.")
             return
-        dlg = AbonoDialog(int(f["id"]), str(cliente.get("nombre") or ""), str(deuda.get("numero_factura") or ""), saldo_bs, total_bs, self)
+        dlg = AbonoDialog(int(f["id"]), str(cliente.get("nombre") or ""), str(deuda.get("numero_factura") or ""), saldo_bs, total_bs, self, rate)
         if dlg.exec() == QDialog.Accepted:
             try:
                 nuevo = register_debt_payment(int(f["id"]), dlg.monto_ingresado)
@@ -810,25 +844,34 @@ class FiadosWindow(QDialog):
             restante = float(monto)
             afectadas = 0
             for d in pendientes:
-                if restante <= 0.001:
+                if restante <= 0.01:
                     break
+                # El saldo de referencia se calcula con la tasa ACTUAL sobre el
+                # saldo_usd. Usar el saldo_bs guardado (foto de la tasa de la venta)
+                # hacía que el reparto no cuadrara con lo que ve el usuario.
                 try:
-                    saldo_d = float(d.get("saldo_bs") or 0)
+                    saldo_usd_d = float(d.get("saldo_usd") or 0)
                 except Exception:
-                    saldo_d = 0
-                if saldo_d <= 0.001 and rate:
-                    saldo_d = float(d.get("saldo_usd") or 0) * rate
+                    saldo_usd_d = 0.0
+                saldo_d = round(saldo_usd_d * rate, 2) if rate else float(d.get("saldo_bs") or 0)
+                if saldo_d <= 0.01 and rate:
+                    saldo_usd_d = float(d.get("saldo_bs") or 0) / rate
+                    saldo_d = round(saldo_usd_d * rate, 2)
                 pago = min(restante, saldo_d)
-                if pago <= 0.001:
+                if pago <= 0.01:
                     continue
                 try:
                     register_debt_payment(int(d["id"]), round(pago, 2))
-                except Exception:
-                    # Saldo cambiado por otro cobro simultáneo: releer y reintentar.
+                except ValueError:
+                    # El saldo cambió entre la lectura y el cobro (otro cajero).
+                    # Recalcular con el saldo actual antes de reintentar.
                     det = get_debt_detail(int(d["id"]))
-                    fresco = float(det["deuda"].get("saldo_bs") or 0)
+                    fresco_usd = float(det["deuda"].get("saldo_usd") or 0)
+                    if fresco_usd <= 0 and rate:
+                        fresco_usd = float(det["deuda"].get("saldo_bs") or 0) / rate
+                    fresco = round(fresco_usd * rate, 2) if rate else 0
                     pago2 = min(restante, fresco)
-                    if pago2 <= 0.001:
+                    if pago2 <= 0.01:
                         continue
                     register_debt_payment(int(d["id"]), round(pago2, 2))
                     pago = pago2
@@ -837,10 +880,13 @@ class FiadosWindow(QDialog):
             self.cargar_deudas()
             g2 = next((x for x in self._agrupar_por_cliente() if x.get("cliente_id") == g.get("cliente_id")), None)
             saldo_rest = (g2["saldo_usd"] * rate if rate and g2 else 0)
+            sobra = max(0.0, restante)
+            extra = f"\n\n⚠️ Sobró Bs {sobra:,.2f} sin asignar (el total debt era menor a lo indicado)." if sobra > 0.01 else ""
             QMessageBox.information(
                 self,
                 "Abono Registrado",
-                f"Se registró el abono de Bs {monto:,.2f} a {cliente}, repartido en {afectadas} factura(s).\n\nSaldo restante total: Bs {saldo_rest:,.2f}",
+                f"Se registró el abono de Bs {monto:,.2f} a {cliente}, repartido en {afectadas} factura(s)."
+                f"\n\nSaldo restante total: Bs {saldo_rest:,.2f} (a la tasa {rate:,.2f})" + extra,
             )
             _sincronizar_en_segundo_plano()
         except Exception as e:

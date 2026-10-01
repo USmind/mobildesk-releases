@@ -449,6 +449,8 @@ class _PosScreenState extends State<PosScreen> {
       'cliente_nombre': clientName.isNotEmpty ? clientName : null,
       'es_fiada': isFiado || (isMixto && _mixedPaymentDetalle!.fiadoBs > 0),
       'saldo_pendiente': saldoPendiente,
+      // El USD es la fuente de verdad del fiado; el Bs se deriva de la tasa vigente.
+      'saldo_pendiente_usd': widget.state.exchangeRate > 0 ? saldoPendiente / widget.state.exchangeRate : 0.0,
       'fecha': DateTime.now().toIso8601String(),
       'productos': _cart.map((i) => i.toMap()).toList(),
       if (isMixto && _mixedPaymentDetalle != null) 'pagos_detalle': _mixedPaymentDetalle!.toMap(),

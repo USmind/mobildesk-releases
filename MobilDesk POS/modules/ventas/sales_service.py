@@ -163,7 +163,8 @@ def get_debts_by_client(cliente_id):
     connection = get_connection()
     try:
         rows = connection.execute(
-            """SELECT d.id, s.numero_factura, s.fecha, d.total_usd, d.saldo_usd, d.estado
+            """SELECT d.id, s.numero_factura, s.fecha, d.total_usd, d.saldo_usd, d.estado,
+                      d.total_bs, d.saldo_bs, d.tasa_registro
                FROM credit_debts d JOIN sales s ON s.id=d.venta_id
                WHERE d.cliente_id=? ORDER BY d.id DESC""",
             (cliente_id,),
@@ -448,6 +449,7 @@ def get_sales_history():
             SELECT s.id, s.numero_factura, u.nombre AS usuario_nombre, c.nombre AS cliente_nombre,
                    s.tasa_utilizada, s.total_usd, s.total_bs, s.metodo_pago,
                    s.pagos_detalle, s.vuelto_bs, s.fecha, s.estado, s.es_fiada,
+                   COALESCE(d.saldo_usd, 0) AS saldo_pendiente_usd,
                    COALESCE(d.saldo_bs, 0) AS saldo_pendiente
             FROM sales s
             LEFT JOIN users u ON s.usuario_id = u.id
@@ -470,38 +472,79 @@ def get_credit_debts():
 
 
 def register_debt_payment(deuda_id, monto_bs):
+    """
+    Registra un abono. La FUENTE DE VERDAD es el saldo en USD; el monto en Bs
+    se recalcula siempre con la tasa vigente.
+
+    Antes se validaba y se restaba contra 'saldo_bs', que es la foto congelada al
+    momento de la venta. Al cambiar la tasa, la ventana mostraba un saldo que el
+    servicio rechazaba ("El pago supera el saldo pendiente"), dejando deudas que
+    no se podían cobrar.
+    """
     monto_bs = float(monto_bs)
-    if monto_bs <= 0: raise ValueError("El pago debe ser mayor que cero.")
+    if monto_bs <= 0:
+        raise ValueError("El pago debe ser mayor que cero.")
+
+    rate = get_current_rate_value() or 0
+    if rate <= 0:
+        raise ValueError("No hay una tasa USD/Bs vigente. Configúrala para registrar el abono.")
+
     connection = get_connection()
     try:
         debt = connection.execute(
-            """SELECT d.id, d.saldo_bs, d.saldo_usd, s.numero_factura, c.nombre AS cliente_nombre
+            """SELECT d.id, d.saldo_bs, d.saldo_usd, d.total_usd, s.numero_factura,
+                      c.nombre AS cliente_nombre
                FROM credit_debts d
                JOIN sales s ON s.id = d.venta_id
                JOIN clients c ON c.id = d.cliente_id
                WHERE d.id = ?""",
             (deuda_id,)
         ).fetchone()
-        if debt is None: raise ValueError("La deuda no existe.")
-        if monto_bs > float(debt["saldo_bs"]): raise ValueError("El pago supera el saldo pendiente.")
-        
-        rate = get_current_rate_value() or 0
-        monto_usd = monto_bs / rate if rate else 0
-        saldo = float(debt["saldo_bs"]) - monto_bs
-        saldo_usd = float(debt["saldo_usd"]) - monto_usd if debt["saldo_usd"] else saldo / rate if rate else 0
-        
-        connection.execute("INSERT INTO debt_payments(deuda_id, monto_bs, monto_usd, tasa_pago) VALUES(?,?,?,?)", (deuda_id, monto_bs, monto_usd, rate))
-        connection.execute("UPDATE credit_debts SET saldo_bs=?, saldo_usd=?, estado=? WHERE id=?", (saldo, saldo_usd, "pagada" if saldo == 0 else "pendiente", deuda_id))
+        if debt is None:
+            raise ValueError("La deuda no existe.")
+
+        # Saldo de referencia en USD. Si viniera en 0 (deuda vieja sin migrar),
+        # se deriva del Bs guardado usando la tasa actual.
+        saldo_usd_actual = float(debt["saldo_usd"] or 0)
+        if saldo_usd_actual <= 0:
+            saldo_usd_actual = float(debt["saldo_bs"] or 0) / rate
+        # Saldo mostrado al usuario, a la tasa de HOY.
+        saldo_bs_actual = round(saldo_usd_actual * rate, 2)
+
+        if monto_bs > saldo_bs_actual + 0.01:
+            raise ValueError(
+                f"El pago supera el saldo pendiente "
+                f"(saldo actual: Bs {saldo_bs_actual:,.2f} a la tasa {rate:,.2f})."
+            )
+
+        monto_usd = monto_bs / rate
+        # Tolerancia de 1 centavo: sin ella, los residuos de coma flotante
+        # dejan deudas en 'pendiente' para siempre y se vuelven impagables.
+        nuevo_saldo_usd = saldo_usd_actual - monto_usd
+        if abs(nuevo_saldo_usd) < 0.005:
+            nuevo_saldo_usd = 0.0
+        nuevo_saldo_bs = round(nuevo_saldo_usd * rate, 2)
+
+        connection.execute(
+            "INSERT INTO debt_payments(deuda_id, monto_bs, monto_usd, tasa_pago) VALUES(?,?,?,?)",
+            (deuda_id, monto_bs, monto_usd, rate),
+        )
+        connection.execute(
+            "UPDATE credit_debts SET saldo_bs=?, saldo_usd=?, estado=? WHERE id=?",
+            (nuevo_saldo_bs, nuevo_saldo_usd, "pagada" if nuevo_saldo_usd <= 0 else "pendiente", deuda_id),
+        )
         queue_event_with_connection(connection, "abono_deuda", {
             "numero_factura": str(debt["numero_factura"]),
             "cliente_nombre": str(debt["cliente_nombre"]),
             "monto_bs": monto_bs,
             "monto_usd": monto_usd,
-            "saldo_restante_bs": saldo,
-            "saldo_restante_usd": saldo_usd,
+            "saldo_restante_bs": nuevo_saldo_bs,
+            "saldo_restante_usd": nuevo_saldo_usd,
         })
-        connection.commit(); return saldo
-    finally: connection.close()
+        connection.commit()
+        return nuevo_saldo_bs
+    finally:
+        connection.close()
 
 
 def get_debt_payments(deuda_id):

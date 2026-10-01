@@ -119,10 +119,23 @@ def get_financial_kpis(fecha_inicio=None, fecha_fin=None):
         ganancia_bruta_usd = max(0, venta_items_usd - costo_total_usd) if costo_total_usd > 0 else venta_items_usd
 
         # Pending debts
+        # saldo_usd es la fuente de verdad; el Bs se refleja a la tasa vigente.
+        # Sumar 'saldo_bs' directamente mostraba la foto congelada al momento de
+        # cada venta, que no cuadra con la ventana de Fiados.
         debts_row = connection.execute(
-            "SELECT COALESCE(SUM(saldo_bs), 0) AS total_deudas_bs FROM credit_debts WHERE estado = 'pendiente'"
+            "SELECT COALESCE(SUM(saldo_usd), 0) AS total_deudas_usd, "
+            "COALESCE(SUM(saldo_bs), 0) AS total_deudas_bs "
+            "FROM credit_debts WHERE estado = 'pendiente'"
         ).fetchone()
-        total_deudas_bs = float(debts_row["total_deudas_bs"] or 0)
+        total_deudas_usd = float(debts_row["total_deudas_usd"] or 0)
+        if total_deudas_usd <= 0:
+            total_deudas_usd = float(debts_row["total_deudas_bs"] or 0)
+        try:
+            from modules.configuracion.exchange_rate_service import get_current_rate_value
+            _tasa_kpi = float(get_current_rate_value() or 0)
+        except Exception:
+            _tasa_kpi = 0.0
+        total_deudas_bs = round(total_deudas_usd * _tasa_kpi, 2) if _tasa_kpi > 0 else float(debts_row["total_deudas_bs"] or 0)
 
         total_transacciones = int(row_totals["total_transacciones"] or 0)
         total_ventas_bs = float(row_totals["total_ventas_bs"] or 0)

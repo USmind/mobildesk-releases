@@ -178,6 +178,10 @@ class AppState extends ChangeNotifier {
       }
     }
 
+    // Al arrancar, normalizar los saldos: datos viejos solo tienen el Bs congelado
+    // con la tasa del momento de la venta, hay que derivar el USD y revalorar.
+    _revalorarSaldos();
+
     final fiStr = prefs.getString('firstInstall');
     firstInstall = fiStr != null ? DateTime.tryParse(fiStr) : null;
     if (firstInstall == null) {
@@ -261,6 +265,7 @@ class AppState extends ChangeNotifier {
     if (newMargin != null && newMargin >= 0) {
       profitMargin = newMargin;
     }
+    _revalorarSaldos();
     queueEvent('tasa_cambio_actualizada', {
       'tasa': exchangeRate,
       'margen': profitMargin,
@@ -268,6 +273,40 @@ class AppState extends ChangeNotifier {
     save();
     notifyListeners();
     sync();
+  }
+
+  /// Recalcula el saldo en Bs de cada venta fiada usando la tasa vigente.
+  /// El USD es la fuente de verdad; el Bs se deriva. Sin esto, cambiar la tasa
+  /// dejaba el saldo del movil congelado y distinto al del PC.
+  void _revalorarSaldos() {
+    if (exchangeRate <= 0) return;
+    for (var i = 0; i < sales.length; i++) {
+      final s = sales[i];
+      if (!s.esFiada) continue;
+      final usd = s.saldoPendienteUsd > 0
+          ? s.saldoPendienteUsd
+          : (s.tasa > 0 ? s.saldoPendiente / s.tasa : 0.0);
+      if (usd <= 0) continue;
+      sales[i] = Sale(
+        id: s.id,
+        numeroFactura: s.numeroFactura,
+        tasa: s.tasa,
+        totalUsd: s.totalUsd,
+        totalBs: s.totalBs,
+        metodoPago: s.metodoPago,
+        montoRecibidoBs: s.montoRecibidoBs,
+        montoRecibidoUsd: s.montoRecibidoUsd,
+        vueltoBs: s.vueltoBs,
+        vueltoUsd: s.vueltoUsd,
+        clienteNombre: s.clienteNombre,
+        esFiada: usd > 0,
+        saldoPendiente: usd * exchangeRate,
+        saldoPendienteUsd: usd,
+        fecha: s.fecha,
+        productos: s.productos,
+        pagosDetalle: s.pagosDetalle,
+      );
+    }
   }
 
   /// Obtiene la tasa BCV automáticamente y la aplica al sistema.
@@ -331,7 +370,14 @@ class AppState extends ChangeNotifier {
     );
     if (idx >= 0) {
       final old = sales[idx];
-      final newBalance = (old.saldoPendiente - amountPaid).clamp(0.0, double.infinity);
+      // Descontar en USD (fuente de verdad) y derivar el Bs con la tasa vigente.
+      final saldoUsdPrevio = old.saldoPendienteUsd > 0
+          ? old.saldoPendienteUsd
+          : (exchangeRate > 0 ? old.saldoPendiente / exchangeRate : 0.0);
+      final abonoUsd = montoUsd ?? (exchangeRate > 0 ? amountPaid / exchangeRate : 0.0);
+      var newBalanceUsd = (saldoUsdPrevio - abonoUsd);
+      if (newBalanceUsd.abs() < 0.005) newBalanceUsd = 0.0;
+      final newBalance = exchangeRate > 0 ? newBalanceUsd * exchangeRate : 0.0;
       sales[idx] = Sale(
         id: old.id,
         numeroFactura: old.numeroFactura,
@@ -344,8 +390,9 @@ class AppState extends ChangeNotifier {
         vueltoBs: old.vueltoBs,
         vueltoUsd: old.vueltoUsd,
         clienteNombre: old.clienteNombre,
-        esFiada: newBalance > 0,
+        esFiada: newBalanceUsd > 0,
         saldoPendiente: newBalance,
+        saldoPendienteUsd: newBalanceUsd,
         fecha: old.fecha,
         productos: old.productos,
         pagosDetalle: old.pagosDetalle,
@@ -355,10 +402,11 @@ class AppState extends ChangeNotifier {
         'numero_factura': old.numeroFactura,
         'cliente_nombre': old.clienteNombre,
         'monto_bs': amountPaid,
+        'monto_usd': abonoUsd,
         'saldo_restante_bs': newBalance,
+        'saldo_restante_usd': newBalanceUsd,
       };
       if (metodo != null && metodo.isNotEmpty) datosAbono['metodo'] = metodo;
-      if (montoUsd != null) datosAbono['monto_usd'] = montoUsd;
       queueEvent('abono_deuda', datosAbono);
 
       save();
@@ -388,6 +436,9 @@ class AppState extends ChangeNotifier {
       final margin = double.tryParse(datos['margen']?.toString() ?? '');
       if (rate != null && rate > 0) exchangeRate = rate;
       if (margin != null && margin >= 0) profitMargin = margin;
+      // Revalorar los saldos fiados con la tasa que acaba de llegar del PC,
+      // para que el movil muestre lo mismo que la computadora.
+      _revalorarSaldos();
     } else if (tipo == 'negocio_config_actualizada') {
       final name = datos['nombre_negocio']?.toString();
       if (name != null && name.trim().isNotEmpty) {
@@ -460,11 +511,19 @@ class AppState extends ChangeNotifier {
       licFechaExpiracion = nuevaFecha;
     } else if (tipo == 'abono_deuda') {
       final fac = datos['numero_factura']?.toString() ?? '';
-      final monto = double.tryParse(datos['monto_bs']?.toString() ?? '0') ?? 0.0;
       final idx = sales.indexWhere((s) => s.numeroFactura == fac && fac.isNotEmpty);
       if (idx >= 0) {
         final old = sales[idx];
-        final newBalance = (old.saldoPendiente - monto).clamp(0.0, double.infinity);
+        // El PC ya envio el saldo restante calculado; usarlo evita que el movil
+        // recalcule con otra tasa y quede desincronizado.
+        final usdNuevo = double.tryParse(datos['saldo_restante_usd']?.toString() ?? '');
+        final saldoUsd = usdNuevo ??
+            (exchangeRate > 0
+                ? (old.saldoPendienteUsd > 0 ? old.saldoPendienteUsd : old.saldoPendiente / exchangeRate) -
+                    (double.tryParse(datos['monto_usd']?.toString() ?? '') ?? 0.0)
+                : 0.0);
+        final saldoUsdFinal = saldoUsd.abs() < 0.005 ? 0.0 : saldoUsd;
+        final newBalance = exchangeRate > 0 ? saldoUsdFinal * exchangeRate : 0.0;
         sales[idx] = Sale(
           id: old.id,
           numeroFactura: old.numeroFactura,
@@ -477,8 +536,9 @@ class AppState extends ChangeNotifier {
           vueltoBs: old.vueltoBs,
           vueltoUsd: old.vueltoUsd,
           clienteNombre: old.clienteNombre,
-          esFiada: newBalance > 0,
+          esFiada: saldoUsdFinal > 0,
           saldoPendiente: newBalance,
+          saldoPendienteUsd: saldoUsdFinal,
           fecha: old.fecha,
           productos: old.productos,
           pagosDetalle: old.pagosDetalle,

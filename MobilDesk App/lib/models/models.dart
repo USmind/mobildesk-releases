@@ -182,7 +182,13 @@ class Sale {
   final double vueltoUsd;
   final String? clienteNombre;
   final bool esFiada;
+  /// Saldo pendiente en Bs. Es un VALOR DERIVADO: se calcula como
+  /// [saldoPendienteUsd] x tasa vigente, para que cambiar la tasa lo actualice.
+  /// Antes se guardaba congelado con la tasa del momento de la venta y quedaba
+  /// desincronizado del PC.
   final double saldoPendiente;
+  /// Saldo pendiente en dolares (fuente de verdad).
+  final double saldoPendienteUsd;
   final String fecha;
   final List<SaleItem> productos;
   final PagoMixtoDetalle? pagosDetalle;
@@ -201,6 +207,7 @@ class Sale {
     this.clienteNombre,
     this.esFiada = false,
     this.saldoPendiente = 0,
+    this.saldoPendienteUsd = 0,
     required this.fecha,
     required this.productos,
     this.pagosDetalle,
@@ -220,6 +227,7 @@ class Sale {
         'cliente_nombre': clienteNombre,
         'es_fiada': esFiada,
         'saldo_pendiente': saldoPendiente,
+        'saldo_pendiente_usd': saldoPendienteUsd,
         'fecha': fecha,
         'productos': productos.map((p) => p.toMap()).toList(),
         'pagos_detalle': pagosDetalle?.toMap(),
@@ -249,6 +257,7 @@ class Sale {
       clienteNombre: map['cliente_nombre']?.toString(),
       esFiada: map['es_fiada'] == true || map['es_fiada'] == 1,
       saldoPendiente: double.tryParse(map['saldo_pendiente']?.toString() ?? '0') ?? 0,
+      saldoPendienteUsd: double.tryParse(map['saldo_pendiente_usd']?.toString() ?? '0') ?? 0,
       fecha: map['fecha']?.toString() ?? DateTime.now().toIso8601String(),
       productos: items,
       pagosDetalle: pagosDetalle,

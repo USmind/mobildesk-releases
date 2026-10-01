@@ -234,7 +234,8 @@ def _queue_initial_snapshot(connection):
     sales = connection.execute(
         """SELECT s.numero_factura, s.tasa_utilizada AS tasa, s.total_usd, s.total_bs, s.metodo_pago,
                   s.monto_recibido_bs, s.monto_recibido_usd, s.vuelto_bs, s.vuelto_usd, s.es_fiada,
-                  c.nombre AS cliente_nombre, COALESCE(d.saldo_bs, 0) AS saldo_pendiente
+                  c.nombre AS cliente_nombre, COALESCE(d.saldo_bs, 0) AS saldo_pendiente,
+                  COALESCE(d.saldo_usd, 0) AS saldo_pendiente_usd
            FROM sales s
            LEFT JOIN clients c ON c.id=s.cliente_id
            LEFT JOIN credit_debts d ON d.venta_id=s.id"""
@@ -510,11 +511,11 @@ def _apply_remote_event(connection, event):
                     total_usd_deuda = float(data.get("total_bs") or 0) / tasa_venta
                 total_bs_deuda = float(data.get("total_bs") or 0)
                 saldo_bs = float(data.get("saldo_pendiente") or total_bs_deuda or 0)
-                # saldo_usd proporcional al saldo_bs, o el total_usd si esta pagada.
-                if saldo_bs > 0 and total_bs_deuda > 0:
+                # La app ya envia el saldo en USD (fuente de verdad). Si no llega,
+                # derivarlo del saldo_bs de forma proporcional al total de la venta.
+                saldo_usd = float(data.get("saldo_pendiente_usd") or 0)
+                if saldo_usd <= 0 and saldo_bs > 0 and total_bs_deuda > 0:
                     saldo_usd = total_usd_deuda * (saldo_bs / total_bs_deuda)
-                else:
-                    saldo_usd = 0.0
                 connection.execute(
                     """INSERT INTO credit_debts(venta_id, cliente_id, total_bs, saldo_bs, total_usd, saldo_usd, tasa_registro, estado)
                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -526,7 +527,7 @@ def _apply_remote_event(connection, event):
                         total_usd_deuda,
                         saldo_usd,
                         tasa_venta or None,
-                        "pagada" if saldo_bs <= 0 else "pendiente",
+                        "pagada" if saldo_usd <= 0.001 else "pendiente",
                     ),
                 )
 
@@ -559,13 +560,24 @@ def _apply_remote_event(connection, event):
                         rate = float(get_current_rate_value() or 0)
                     except Exception:
                         rate = 0.0
-                    monto_usd = float(data.get("monto_usd") or (monto_bs / rate if rate else 0))
-                    new_saldo = max(0.0, float(debt["saldo_bs"]) - monto_bs)
-                    new_saldo_usd = max(0.0, float(debt["saldo_usd"] or 0) - monto_usd)
+                    # Convertir aqui con la tasa vigente del PC y no con el USD
+                    # que envio el movil: si la tasa cambio entre la captura y la
+                    # sincronizacion, el abono quedaria desconectado de la deuda.
+                    monto_usd = (monto_bs / rate) if rate > 0 else float(data.get("monto_usd") or 0)
+                    # El saldo USD es la fuente de verdad. Restar Bs sobre el
+                    # saldo_bs guardado (foto de una tasa vieja) dejaba el saldo
+                    # mal y cerraba la deuda cuando aun debia dinero.
+                    saldo_usd_previo = float(debt["saldo_usd"] or 0)
+                    if saldo_usd_previo <= 0 and rate:
+                        # Deuda legacy sin saldo_usd: derivarlo del saldo_bs.
+                        saldo_usd_previo = float(debt["saldo_bs"] or 0) / rate
+                    new_saldo_usd = max(0.0, saldo_usd_previo - monto_usd)
+                    # El Bs se deriva del USD con la tasa vigente.
+                    new_saldo = round(new_saldo_usd * rate, 2) if rate else max(0.0, float(debt["saldo_bs"] or 0) - monto_bs)
                     connection.execute("INSERT INTO debt_payments(deuda_id, monto_bs, monto_usd, tasa_pago) VALUES(?,?,?,?)", (debt["id"], monto_bs, monto_usd, rate or None))
                     connection.execute(
                         "UPDATE credit_debts SET saldo_bs=?, saldo_usd=?, estado=? WHERE id=?",
-                        (new_saldo, new_saldo_usd, "pagada" if new_saldo <= 0 else "pendiente", debt["id"]),
+                        (new_saldo, new_saldo_usd, "pagada" if new_saldo_usd <= 0.001 else "pendiente", debt["id"]),
                     )
 
     connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (event["id"],))

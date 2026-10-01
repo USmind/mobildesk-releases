@@ -1136,12 +1136,29 @@ class FacturaDetalleDialog(QDialog):
                     s_usd = float(dinfo["deuda"].get("saldo_usd") or 0)
                 except Exception:
                     s_usd = 0
-                s_bs = s_usd * tasa if tasa else 0
+                # El saldo se refleja a la TASA ACTUAL (como la ventana de Fiados),
+                # no a la tasa del momento de la venta: si no, la misma deuda
+                # aparecia con dos cifras distintas en el mismo programa.
+                try:
+                    from modules.configuracion.exchange_rate_service import get_current_rate_value
+                    tasa_actual_saldo = float(get_current_rate_value() or 0)
+                except Exception:
+                    tasa_actual_saldo = 0.0
+                s_bs = (s_usd * tasa_actual_saldo) if tasa_actual_saldo else (s_usd * tasa)
                 sep = QFrame()
                 sep.setFrameShape(QFrame.HLine)
                 sep.setStyleSheet("color: #fecaca;")
                 b_layout.addWidget(sep)
-                lbl_s = QLabel(f"<b style='color:#b91c1c;'>Saldo pendiente: Bs {s_bs:,.2f} (${s_usd:,.2f}) — {len(dinfo['pagos'])} abono(s)</b>")
+                nota_tasa = ""
+                if tasa_actual_saldo and abs(tasa_actual_saldo - tasa) > 0.01:
+                    nota_tasa = (
+                        f"<br><i style='color:#64748b;'>a la tasa vigente "
+                        f"Bs {tasa_actual_saldo:,.2f} (la venta fue a Bs {tasa:,.2f})</i>"
+                    )
+                lbl_s = QLabel(
+                    f"<b style='color:#b91c1c;'>Saldo pendiente: Bs {s_bs:,.2f} (${s_usd:,.2f})"
+                    f" — {len(dinfo['pagos'])} abono(s)</b>{nota_tasa}"
+                )
                 lbl_s.setWordWrap(True)
                 b_layout.addWidget(lbl_s)
                 if dinfo["pagos"]:

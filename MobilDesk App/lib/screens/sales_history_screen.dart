@@ -27,6 +27,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
   late TabController _tabController;
   final _currencyFormat = NumberFormat('#,##0.00', 'es_VE');
   final _cobrarSearchController = TextEditingController();
+  final _ventasSearchController = TextEditingController();
   final Set<String> _expandedFacturas = {};
 
   @override
@@ -39,6 +40,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
   void dispose() {
     _tabController.dispose();
     _cobrarSearchController.dispose();
+    _ventasSearchController.dispose();
     super.dispose();
   }
 
@@ -63,6 +65,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                 Text(
                   'Saldo Pendiente: Bs ${_currencyFormat.format(sale.saldoPendiente)}',
                   style: DesignTokens.style('bodyLarge').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.error),
+                ),
+                // El saldo se revalora con la tasa vigente; mostrar el USD evita
+                // que el cliente discuta la cifra ("yo te debo menos dollars").
+                Text(
+                  'Equivale a \$${(sale.saldoPendienteUsd > 0 ? sale.saldoPendienteUsd : (widget.state.exchangeRate > 0 ? sale.saldoPendiente / widget.state.exchangeRate : 0)).toStringAsFixed(2)}'
+                  ' · Tasa Bs ${_currencyFormat.format(widget.state.exchangeRate)}',
+                  style: DesignTokens.style('bodySmall'),
                 ),
                 DesignTokens.spaceMd.height,
                 TextField(
@@ -508,6 +517,15 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
     final creditSales = widget.state.sales.where((s) => s.esFiada && s.saldoPendiente > 0).toList().reversed.toList();
     final pendingCount = widget.state.sales.where((s) => s.esFiada && s.saldoPendiente > 0).length;
 
+    // El buscador del historial filtra por numero de factura o nombre de cliente.
+    final queryVentas = _ventasSearchController.text.trim().toLowerCase();
+    final ventasFiltradas = queryVentas.isEmpty
+        ? widget.state.sales.reversed.toList()
+        : widget.state.sales.reversed.where((s) {
+            return s.numeroFactura.toLowerCase().contains(queryVentas) ||
+                (s.clienteNombre ?? '').toLowerCase().contains(queryVentas);
+          }).toList();
+
     return Scaffold(
       backgroundColor: DesignTokens.background,
       appBar: AppBar(
@@ -536,44 +554,76 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                   title: 'Sin ventas registradas',
                   message: 'Las ventas aparecerán aquí al registrar desde el POS',
                 )
-              : ListView.builder(
-                  padding: DesignTokens.paddingAll('md'),
-                  itemCount: widget.state.sales.reversed.toList().length,
-                  itemBuilder: (ctx, i) {
-                    final sale = widget.state.sales.reversed.toList()[i];
-                    return Card(
-                      elevation: 0,
-                      margin: DesignTokens.paddingOnly(bottom: 'sm'),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: DesignTokens.borderRadius('lg'),
-                        side: BorderSide(color: DesignTokens.border),
-                      ),
-                      color: DesignTokens.surface,
-                      child: ListTile(
-                        onTap: () => _showSaleDetail(sale),
-                        title: Text('Factura #${sale.numeroFactura}', style: DesignTokens.style('bodyLarge').copyWith(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          '${sale.fecha.split('T').first} · ${sale.metodoPago.toUpperCase()}'
-                          '${sale.clienteNombre != null ? ' · Cliente: ${sale.clienteNombre}' : ''}',
-                          style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Bs ${_currencyFormat.format(sale.totalBs)}',
-                              style: DesignTokens.style('titleMedium').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.text),
-                            ),
-                            Text(
-                              '\$${_currencyFormat.format(sale.totalUsd)}',
-                              style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
-                            ),
-                          ],
+              : Column(
+                  children: [
+                    Padding(
+                      padding: DesignTokens.paddingAll('md'),
+                      child: TextField(
+                        controller: _ventasSearchController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por factura o cliente...',
+                          prefixIcon: Icon(Icons.search_rounded, color: DesignTokens.primary),
+                          suffixIcon: _ventasSearchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: DesignTokens.textMuted),
+                                  onPressed: () => setState(() => _ventasSearchController.clear()),
+                                )
+                              : null,
+                          border: OutlineInputBorder(borderRadius: DesignTokens.borderRadius('md')),
+                          filled: true,
+                          fillColor: DesignTokens.surfaceVariant,
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    Expanded(
+                      child: ventasFiltradas.isEmpty
+                          ? EmptyState(
+                              icon: Icons.search_off_rounded,
+                              title: 'Sin resultados',
+                              message: 'No hay ventas que coincidan con "$queryVentas"',
+                            )
+                          : ListView.builder(
+                              padding: DesignTokens.paddingSymmetric(h: 'md'),
+                              itemCount: ventasFiltradas.length,
+                              itemBuilder: (ctx, i) {
+                                final sale = ventasFiltradas[i];
+                                return Card(
+                                  elevation: 0,
+                                  margin: DesignTokens.paddingOnly(bottom: 'sm'),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: DesignTokens.borderRadius('lg'),
+                                    side: BorderSide(color: DesignTokens.border),
+                                  ),
+                                  color: DesignTokens.surface,
+                                  child: ListTile(
+                                    onTap: () => _showSaleDetail(sale),
+                                    title: Text('Factura #${sale.numeroFactura}', style: DesignTokens.style('bodyLarge').copyWith(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                      '${sale.fecha.split('T').first} · ${sale.metodoPago.toUpperCase()}'
+                                      '${sale.clienteNombre != null ? ' · Cliente: ${sale.clienteNombre}' : ''}',
+                                      style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+                                    ),
+                                    trailing: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Bs ${_currencyFormat.format(sale.totalBs)}',
+                                          style: DesignTokens.style('titleMedium').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.text),
+                                        ),
+                                        Text(
+                                          '\$${_currencyFormat.format(sale.totalUsd)}',
+                                          style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
           // Tab 2: Fiados (individual por factura, se conserva)
           creditSales.isEmpty
