@@ -147,6 +147,22 @@ def set_business_code(custom_code):
     finally:
         connection.close()
 
+    # El snapshot anterior solo LLENA la cola local; no sube nada a la nube.
+    # Sin esta llamada, los productos y ventas se quedaban esperando en
+    # sync_outbox y el móvil, al enlazarse con este código, no encontraba nada.
+    try:
+        sync_now()
+    except Exception as error:
+        # Un fallo de red no debe impedir guardar el código: la cola queda con
+        # lo pendiente y se reintentará en la próxima sincronización automática.
+        try:
+            connection = get_connection()
+            _save_setting(connection, "ultimo_error_global", str(error))
+            connection.commit()
+            connection.close()
+        except Exception:
+            pass
+
 
 def is_configured():
     connection = get_connection()
