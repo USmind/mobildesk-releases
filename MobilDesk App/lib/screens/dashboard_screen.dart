@@ -5,6 +5,7 @@ import '../services/app_state.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/states.dart';
 import '../utils.dart';
+import 'reports_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   final AppState state;
@@ -290,6 +291,24 @@ class DashboardScreen extends StatelessWidget {
                     // Pestaña 2 = Inventario (0=Inicio, 1=Vender, 2=Inventario,
                     // 3=Ventas, 4=Ajustes). Antes iba a 3 (Ventas).
                     onTap: () => onNavigateTab(2),
+                  ),
+                ),
+              ],
+            ),
+            DesignTokens.spaceMd.height,
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Reportes',
+                    color: DesignTokens.secondary,
+                    // Reportes no es una pestaña de la barra inferior: se abre
+                    // como pantalla completa, igual que en la PC.
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ReportsScreen(state: state)),
+                    ),
                   ),
                 ),
               ],

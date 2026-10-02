@@ -8,6 +8,7 @@ import '../utils.dart';
 import 'scanner_screen.dart';
 import 'products_screen.dart' show showProductFormDialog;
 import '../widgets/mixed_payment_dialog.dart';
+import 'ticket_screen.dart';
 
 class PosScreen extends StatefulWidget {
   final AppState state;
@@ -138,7 +139,6 @@ class _PosScreenState extends State<PosScreen> {
 
     final unitPriceUsd = widget.state.calculateSalePriceUsd(_selectedProduct!.precioUsd);
 
-    final keptProduct = _selectedProduct;
     setState(() {
       final existingIndex = _cart.indexWhere((i) => i.codigo == _selectedProduct!.codigo);
       if (existingIndex >= 0) {
@@ -157,8 +157,10 @@ class _PosScreenState extends State<PosScreen> {
           precioUsd: unitPriceUsd,
         ));
       }
-      // Mantener el producto seleccionado para agregar rápido de nuevo.
-      _selectedProduct = keptProduct;
+      // Limpiar el buscador tras agregar: permite buscar el siguiente producto
+      // de inmediato, sin tener que borrar el texto a mano con la X.
+      _productSearchController.clear();
+      _selectedProduct = null;
       _quantityController.text = '1';
     });
     // Devolver el foco al buscador para el siguiente agregado.
@@ -516,6 +518,38 @@ class _PosScreenState extends State<PosScreen> {
           ],
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TicketScreen(
+                    state: widget.state,
+                    sale: widget.state.sales.firstWhere(
+                      (s) => s.numeroFactura == invoiceNumber,
+                      orElse: () => Sale(
+                        id: '',
+                        numeroFactura: invoiceNumber,
+                        tasa: widget.state.exchangeRate,
+                        totalUsd: _totalUsd,
+                        totalBs: _totalBs,
+                        metodoPago: _paymentMethod,
+                        clienteNombre: clientName.isEmpty ? null : clientName,
+                        esFiada: isFiado || (isMixto && _mixedPaymentDetalle!.fiadoBs > 0),
+                        saldoPendiente: saldoPendiente,
+                        saldoPendienteUsd: widget.state.exchangeRate > 0 ? saldoPendiente / widget.state.exchangeRate : 0,
+                        fecha: DateTime.now().toIso8601String(),
+                        productos: _cart.map((i) => i).toList(),
+                        pagosDetalle: _mixedPaymentDetalle,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            child: Text('Ver Ticket', style: DesignTokens.style('labelLarge')),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);

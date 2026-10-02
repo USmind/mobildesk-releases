@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt, QTimer, QThread, Signal, QDateTime
 from PySide6.QtWidgets import (
+    QApplication,
     QMainWindow,
     QWidget,
     QLabel,
@@ -65,6 +66,9 @@ class DashboardWindow(QMainWindow):
         self.btn_update_badge = None
         self.module_views = {}
         self.sidebar_buttons = {}
+        # Módulos ya conectados al bus de tasa, para no duplicar suscripciones
+        # cuando el usuario abre y cierra un módulo varias veces.
+        self._modulos_suscritos = set()
 
         self.crear_interfaz()
         self.showMaximized()
@@ -79,6 +83,13 @@ class DashboardWindow(QMainWindow):
         self.sync_timer.setInterval(20000)
         self.sync_timer.timeout.connect(self.sincronizar_en_segundo_plano)
         self.sync_timer.start()
+
+        # Bus global de tasa: refresca el POS y todos los módulos abiertos.
+        try:
+            from ui.rate_bus import suscribir
+            suscribir(self._al_cambiar_tasa_global, parent=self)
+        except Exception:
+            pass
 
     def iniciar_verificacion_actualizacion(self):
         try:
@@ -414,6 +425,13 @@ class DashboardWindow(QMainWindow):
         self.venta_actual.sale_registered.connect(self.on_cambio_productos)
         self.venta_actual.setWindowFlags(Qt.Widget)
         page_layout.addWidget(self.venta_actual)
+        # El POS vive fuera del stack de módulos, así que hay que suscribirlo
+        # aparte para que su carrito se revalore al cambiar la tasa.
+        try:
+            from ui.rate_bus import suscribir
+            suscribir(lambda _=None: self.venta_actual.cargar_tasa(), parent=self.venta_actual)
+        except Exception:
+            pass
 
         self.content_stack.addWidget(self.page_pos)
 
@@ -454,6 +472,23 @@ class DashboardWindow(QMainWindow):
     def actualizar_productos_venta(self):
         if hasattr(self, "venta_actual") and self.venta_actual:
             self.venta_actual.cargar_productos()
+
+    def _al_cambiar_tasa_global(self):
+        """Callback del bus de tasa: refresca todo lo que tenga cifras en Bs."""
+        try:
+            self.actualizar_pantalla_completa()
+            # Recalcular totales del POS abierto (precios, vuelto, fiado).
+            if hasattr(self, "venta_actual") and self.venta_actual:
+                for metodo in ("actualizar_totales", "actualizar_pago",
+                               "cargar_productos"):
+                    fn = getattr(self.venta_actual, metodo, None)
+                    if callable(fn):
+                        try:
+                            fn()
+                        except Exception:
+                            continue
+        except Exception:
+            pass
 
     def on_cambio_productos(self):
         self.actualizar_pantalla_completa()
@@ -517,8 +552,9 @@ class DashboardWindow(QMainWindow):
                 child_widget = ExchangeRateWindow(self.usuario)
                 child_widget.rate_changed.connect(self.on_cambio_productos)
             elif name == "Configurar Negocio":
-                child_widget = BusinessSettingsWindow()
+                child_widget = BusinessSettingsWindow(usuario=self.usuario)
                 child_widget.settings_saved.connect(self.actualizar_pantalla_completa)
+                child_widget.datos_borrados.connect(self._reiniciar_tras_borrado)
             elif name == "Sincronización":
                 child_widget = SyncWindow()
             elif name == "Licencia":
@@ -531,21 +567,74 @@ class DashboardWindow(QMainWindow):
                 child_widget.setWindowFlags(Qt.Widget)
                 self.module_views[name] = child_widget
                 self.content_stack.addWidget(child_widget)
+                # Suscribir CADA módulo al bus de tasa. Antes solo el dashboard
+                # escuchaba 'rate_changed', por eso Fiados/Ventas/Ticket/Reportes
+                # seguian con la tasa vieja hasta que se pulsaba "Actualizar".
+                self._suscribir_al_bus_de_tasa(child_widget)
 
         child_widget = self.module_views.get(name)
 
         # Refrescar datos del módulo si tiene método de carga
         if child_widget:
-            if hasattr(child_widget, "cargar_todo"):
-                child_widget.cargar_todo()
-            elif hasattr(child_widget, "actualizar_vista"):
-                child_widget.actualizar_vista()
-            elif hasattr(child_widget, "cargar_datos"):
-                child_widget.cargar_datos()
-            elif hasattr(child_widget, "cargar"):
-                child_widget.cargar()
-
+            self._refrescar_modulo(child_widget)
             self.content_stack.setCurrentWidget(child_widget)
+
+    def _refrescar_modulo(self, widget):
+        """Llama al método de recarga que implemente el módulo."""
+        if widget is None:
+            return
+        for metodo in ("refrescar_por_tasa", "cargar_todo", "cargar_deudas",
+                       "cargar", "actualizar_vista", "cargar_datos",
+                       "cargar_tasa", "refrescar"):
+            fn = getattr(widget, metodo, None)
+            if callable(fn):
+                try:
+                    fn()
+                    return
+                except Exception:
+                    continue
+
+    def _suscribir_al_bus_de_tasa(self, widget):
+        """Conecta un módulo al bus global para que se refresque al cambiar la tasa."""
+        if widget is None or widget in self._modulos_suscritos:
+            return
+        try:
+            from ui.rate_bus import suscribir
+            if suscribir(lambda _=None, w=widget: self._refrescar_modulo(w), parent=widget):
+                self._modulos_suscritos.add(widget)
+        except Exception:
+            pass
+
+    def _reiniciar_tras_borrado(self):
+        """Tras borrar todos los datos se reinicia la app.
+
+        Se usa el proceso de Python en vez de QApplication.quit() porque el
+        programa se empaqueta con PyInstaller y el reinicio tiene que relanzar
+        el ejecutable, no solo cerrar la ventana.
+        """
+        QMessageBox.information(
+            self,
+            "Reiniciando",
+            "Los datos fueron borrados. El programa se reiniciará ahora.\n\n"
+            "Volverás a la pantalla de configuración para crear el negocio\n"
+            "y volver a activar la licencia.",
+        )
+        import os
+        import subprocess
+        import sys
+        self.sync_timer.stop()
+        # Con PyInstaller (sys.frozen) hay que relanzar el .exe; en desarrollo,
+        # el script de Python.
+        try:
+            if getattr(sys, "frozen", False):
+                subprocess.Popen([sys.executable])
+            else:
+                subprocess.Popen([sys.executable, os.path.abspath(sys.argv[0])])
+        except Exception:
+            # Si no se pudo relanzar, cerrar igualmente: el usuario puede abrir
+            # el programa de nuevo manualmente.
+            pass
+        QApplication.instance().quit()
 
     def _ir_a_fiar_a_cliente(self, cliente):
         """Desde Fiados: abre el POS con el cliente ya elegido para fiarle más."""

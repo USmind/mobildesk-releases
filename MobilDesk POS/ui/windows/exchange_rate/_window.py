@@ -14,6 +14,7 @@ from modules.configuracion.exchange_rate_service import (
     set_exchange_rate,
 )
 from modules.configuracion.bcv_service import fetch_and_apply_rate
+from ui.rate_bus import notificar_cambio_tasa
 
 
 class ExchangeRateWindow(QWidget):
@@ -27,6 +28,9 @@ class ExchangeRateWindow(QWidget):
         self.setMinimumSize(480, 400)
         self.crear_interfaz()
         self.cargar_datos_actuales()
+        # Suscribirse al bus permite que el movil tambien dispare el refresco de
+        # todas las ventanas cuando llega una tasa por sincronizacion.
+        self._suscrito_al_bus = False
 
     def crear_interfaz(self):
         layout = QVBoxLayout(self)
@@ -127,6 +131,8 @@ class ExchangeRateWindow(QWidget):
             if ok:
                 self.cargar_datos_actuales()
                 self.rate_changed.emit()
+                # Avisar a TODAS las ventanas abiertas, no solo al dashboard.
+                notificar_cambio_tasa()
                 self.btn_bcv.setText("¡Tasa aplicada!")
                 QTimer.singleShot(2500, lambda: self.btn_bcv.setText("Obtener Tasa del BCV"))
             else:
@@ -135,6 +141,13 @@ class ExchangeRateWindow(QWidget):
             QMessageBox.critical(self, "Error", f"No se pudo obtener la tasa: {e}")
         finally:
             self.btn_bcv.setEnabled(True)
+
+    def refrescar_por_tasa(self):
+        """Refresca la etiqueta cuando la tasa cambia desde otro sitio."""
+        try:
+            self.cargar_datos_actuales()
+        except Exception:
+            pass
 
     def cargar_datos_actuales(self):
         rate = get_current_exchange_rate()
@@ -182,6 +195,9 @@ class ExchangeRateWindow(QWidget):
 
         self.cargar_datos_actuales()
         self.rate_changed.emit()
+        # Sin esto, Fiados / Ventas / Ticket / Reportes seguian mostrando la tasa
+        # anterior hasta que el usuario pulsaba "Actualizar" en cada pantalla.
+        notificar_cambio_tasa()
 
         QMessageBox.information(
             self,

@@ -134,6 +134,13 @@ class SyncWindow(QDialog):
         self.btn_sync.clicked.connect(self.ejecutar_sincronizacion)
         layout.addWidget(self.btn_sync)
 
+    def refrescar_por_tasa(self):
+        """Refresca el estado tras una sincronización que trae tasa nueva."""
+        try:
+            self.actualizar_estado()
+        except Exception:
+            pass
+
     def actualizar_estado(self):
         info = get_sync_status_info()
         bid = info["business_id"]

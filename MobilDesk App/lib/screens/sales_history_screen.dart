@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'ticket_screen.dart';
 import '../theme/design_tokens.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
@@ -33,7 +34,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -210,7 +211,64 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                ctx,
+                MaterialPageRoute(
+                  builder: (_) => TicketScreen(state: widget.state, sale: sale),
+                ),
+              );
+            },
+            child: Text('Ver Ticket', style: DesignTokens.style('labelLarge')),
+          ),
           FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+        ],
+      ),
+    );
+  }
+
+  /// Saldo pendiente en USD de una venta. El Bs es derivado, el USD es la verdad.
+  double _saldoUsdDe(Sale s) {
+    if (s.saldoPendienteUsd > 0) return s.saldoPendienteUsd;
+    if (widget.state.exchangeRate > 0) return s.saldoPendiente / widget.state.exchangeRate;
+    return 0;
+  }
+
+  /// Tarjeta de indicador, con el mismo formato que los KPI de la PC.
+  Widget _kpiCard(String titulo, String valor, String detalle) {
+    return Container(
+      padding: DesignTokens.paddingAll('sm'),
+      decoration: BoxDecoration(
+        color: DesignTokens.surfaceVariant,
+        borderRadius: DesignTokens.borderRadius('md'),
+        border: Border.all(color: DesignTokens.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            titulo,
+            style: DesignTokens.style('labelSmall').copyWith(
+              color: DesignTokens.textMuted,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            valor,
+            style: DesignTokens.style('titleSmall').copyWith(
+              fontWeight: FontWeight.bold,
+              color: DesignTokens.warning,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            detalle,
+            style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -331,10 +389,20 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
   Widget _buildCobrarTab() {
     final query = _cobrarSearchController.text.trim().toLowerCase();
     final grouped = _groupDebtsByClient();
+    // Igual que la PC: el buscador también acepta el número de factura.
     final names = grouped.keys
-        .where((n) => query.isEmpty || n.toLowerCase().contains(query))
+        .where((n) {
+          if (query.isEmpty) return true;
+          if (n.toLowerCase().contains(query)) return true;
+          return grouped[n]!.any((f) => f.numeroFactura.toLowerCase().contains(query));
+        })
         .toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      ..sort((a, b) {
+        // Los que deben más van primero, igual que la PC.
+        final sa = grouped[a]!.fold<double>(0, (s, f) => s + f.saldoPendiente);
+        final sb = grouped[b]!.fold<double>(0, (s, f) => s + f.saldoPendiente);
+        return sb.compareTo(sa);
+      });
 
     if (grouped.isEmpty) {
       return const EmptyState(
@@ -344,15 +412,46 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
       );
     }
 
+    // KPIs con la tasa vigente, como los de la ventana Fiados de la PC.
+    final totalPendienteBs = grouped.values
+        .expand((l) => l)
+        .fold<double>(0, (s, f) => s + f.saldoPendiente);
+    final totalPendienteUsd = grouped.values
+        .expand((l) => l)
+        .fold<double>(0, (s, f) => s + _saldoUsdDe(f));
+    final numClientes = grouped.length;
+
     return Column(
       children: [
         Padding(
           padding: DesignTokens.paddingAll('md'),
+          child: Row(
+            children: [
+              Expanded(
+                child: _kpiCard(
+                  'POR COBRAR',
+                  'Bs ${_currencyFormat.format(totalPendienteBs)}',
+                  '\$${_currencyFormat.format(totalPendienteUsd)} · $numClientes cliente(s)',
+                ),
+              ),
+              DesignTokens.spaceSm.width,
+              Expanded(
+                child: _kpiCard(
+                  'TASA APLICADA',
+                  'Bs ${_currencyFormat.format(widget.state.exchangeRate)}',
+                  '1 USD = Bs ${_currencyFormat.format(widget.state.exchangeRate)}',
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: DesignTokens.paddingSymmetric(h: 'md'),
           child: TextField(
             controller: _cobrarSearchController,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              hintText: 'Buscar por nombre de cliente...',
+              hintText: 'Buscar por cliente o número de factura...',
               prefixIcon: Icon(Icons.search_rounded, color: DesignTokens.primary),
               suffixIcon: _cobrarSearchController.text.isNotEmpty
                   ? IconButton(
@@ -514,7 +613,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final creditSales = widget.state.sales.where((s) => s.esFiada && s.saldoPendiente > 0).toList().reversed.toList();
     final pendingCount = widget.state.sales.where((s) => s.esFiada && s.saldoPendiente > 0).length;
 
     // El buscador del historial filtra por numero de factura o nombre de cliente.
@@ -540,7 +638,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
           tabs: [
             Tab(text: 'Ventas (${widget.state.sales.length})'),
             Tab(text: 'Fiados ($pendingCount)'),
-            const Tab(text: 'Cobrar'),
           ],
         ),
       ),
@@ -625,141 +722,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
                     ),
                   ],
                 ),
-          // Tab 2: Fiados (individual por factura, se conserva)
-          creditSales.isEmpty
-              ? const EmptyState(
-                  icon: Icons.credit_card_off_outlined,
-                  title: 'Sin deudas pendientes',
-                  message: 'Todas las ventas fiadas están saldadas',
-                )
-              : ListView.builder(
-                  padding: DesignTokens.paddingAll('md'),
-                  itemCount: creditSales.length,
-                  itemBuilder: (ctx, i) {
-                    final sale = creditSales[i];
-                    final expanded = _expandedFacturas.contains(sale.numeroFactura);
-                    return Card(
-                      elevation: 0,
-                      margin: DesignTokens.paddingOnly(bottom: 'sm'),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: DesignTokens.borderRadius('lg'),
-                        side: BorderSide(color: DesignTokens.warningLight, width: 1.5),
-                      ),
-                      color: DesignTokens.surface,
-                      child: Padding(
-                        padding: DesignTokens.paddingAll('md'),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        sale.clienteNombre ?? 'Cliente',
-                                        softWrap: true,
-                                        style: DesignTokens.style('titleMedium').copyWith(fontWeight: FontWeight.bold),
-                                      ),
-                                      DesignTokens.spaceXs.height,
-                                      Text(
-                                        softWrap: true,
-                                        'Factura #${sale.numeroFactura} · Total: Bs ${_currencyFormat.format(sale.totalBs)}',
-                                        style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
-                                      ),
-                                      DesignTokens.spaceXs.height,
-                                      Text(
-                                        softWrap: true,
-                                        'Saldo Pendiente: Bs ${_currencyFormat.format(sale.saldoPendiente)}',
-                                        style: DesignTokens.style('bodyMedium').copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: DesignTokens.warning,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                DesignTokens.spaceSm.width,
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    FilledButton(
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: DesignTokens.secondary,
-                                        padding: DesignTokens.paddingSymmetric(h: 'md', v: 'sm'),
-                                        minimumSize: const Size(0, 36),
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      onPressed: () => _registerDebtPayment(sale),
-                                      child: Text('Abonar', style: DesignTokens.style('labelMedium').copyWith(color: Colors.white)),
-                                    ),
-                                    TextButton(
-                                      style: TextButton.styleFrom(
-                                        minimumSize: const Size(0, 32),
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                      onPressed: () => setState(() {
-                                        if (expanded) {
-                                          _expandedFacturas.remove(sale.numeroFactura);
-                                        } else {
-                                          _expandedFacturas.add(sale.numeroFactura);
-                                        }
-                                      }),
-                                      child: Text(expanded ? 'Ocultar productos' : 'Ver productos (${sale.productos.length})'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            if (expanded) ...[
-                              DesignTokens.spaceSm.height,
-                              const Divider(height: 12),
-                              if (sale.productos.isEmpty)
-                                Text(
-                                  'Sin detalle de productos para esta factura.',
-                                  style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
-                                )
-                              else
-                                ...sale.productos.map((p) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              '${p.cantidad.toStringAsFixed(p.cantidad.truncateToDouble() == p.cantidad ? 0 : 2)} x ${p.nombre.isNotEmpty ? p.nombre : p.codigo}',
-                                              softWrap: true,
-                                              style: DesignTokens.style('bodySmall'),
-                                            ),
-                                          ),
-                                          Text(
-                                            'Bs ${_currencyFormat.format(p.cantidad * p.precioUsd * sale.tasa)}',
-                                            style: DesignTokens.style('bodySmall').copyWith(fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
-                                      ),
-                                    )),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.add_rounded, size: 18),
-                                  label: const Text('Agregar a su cuenta'),
-                                  onPressed: widget.onFiarMas == null || sale.clienteNombre == null
-                                      ? null
-                                      : () => widget.onFiarMas!(sale.clienteNombre!),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-          // Tab 3: Cobrar (agrupado por cliente)
+          // Tab 2: Fiados agrupados por cliente (igual que la PC).
+          // Se elimino la pestana "Cobrar" separada: hacia exactamente lo
+          // mismo que esta, con el nombre del cliente repetido por factura.
           _buildCobrarTab(),
         ],
       ),

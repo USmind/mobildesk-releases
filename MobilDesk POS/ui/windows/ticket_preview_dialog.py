@@ -66,6 +66,13 @@ class TicketPreviewDialog(QDialog):
 
         layout.addLayout(acciones)
 
+    def refrescar_por_tasa(self):
+        """Regenerar el ticket con la tasa vigente (el saldo pendiente cambia)."""
+        try:
+            self.cargar_ticket()
+        except Exception:
+            pass
+
     def cargar_ticket(self):
         try:
             self.ticket_text = generate_sale_ticket_text(self.sale_id_or_invoice)

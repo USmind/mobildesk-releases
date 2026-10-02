@@ -320,11 +320,50 @@ class SalesWindow(QWidget):
             self.tasa_label.setText("Tasa: No configurada")
 
         try:
+            # Revalorar el carrito con la tasa nueva antes de recalcular totales.
+            self.revalorar_carrito()
             self.actualizar_totales()
             self.actualizar_pago()
             self.actualizar_autocompletado()
         except Exception:
             pass
+
+    def revalorar_carrito(self):
+        """Recalcula en Bs los productos ya agregados usando la tasa vigente.
+
+        El precio se guarda en USD en Qt.UserRole+1; el Bs en Qt.UserRole era una
+        foto de la tasa del momento en que se agrego el producto, por lo que al
+        cambiar la tasa el carrito mostraba y cobraba el precio viejo.
+        """
+        try:
+            tasa = float(get_current_rate_value() or 0)
+        except Exception:
+            tasa = 0.0
+        if tasa <= 0:
+            return
+        for fila in range(self.tabla.rowCount()):
+            item_pre = self.tabla.item(fila, 3)
+            item_can = self.tabla.item(fila, 2)
+            item_sub = self.tabla.item(fila, 4)
+            if item_pre is None:
+                continue
+            usd = item_pre.data(Qt.UserRole + 1)
+            if usd is None:
+                # Fila agregada antes de este cambio: no hay USD guardado, se deja.
+                continue
+            cantidad = 0.0
+            if item_can is not None:
+                try:
+                    cantidad = float(item_can.data(Qt.UserRole) or item_can.text() or 0)
+                except (TypeError, ValueError):
+                    cantidad = 0.0
+            precio_bs = float(usd) * tasa
+            subtotal = cantidad * precio_bs
+            item_pre.setData(Qt.UserRole, precio_bs)
+            item_pre.setText(f"Bs {precio_bs:,.2f}")
+            if item_sub is not None:
+                item_sub.setData(Qt.UserRole, subtotal)
+                item_sub.setText(f"Bs {subtotal:,.2f}")
 
     # ==================================================
     # AGREGAR PRODUCTO
@@ -539,6 +578,9 @@ class SalesWindow(QWidget):
 
         item_pre = QTableWidgetItem(f"Bs {precio:,.2f}")
         item_pre.setData(Qt.UserRole, float(precio))
+        # Guardar el precio en USD: es la fuente de verdad y permite revaluar la
+        # fila cuando cambia la tasa (el Bs guardado queda congelado si no).
+        item_pre.setData(Qt.UserRole + 1, float(sale_price_usd(producto["precio_usd"])))
 
         subtotal = float(cantidad) * float(precio)
         item_sub = QTableWidgetItem(f"Bs {subtotal:,.2f}")
@@ -965,6 +1007,13 @@ class FacturaDetalleDialog(QDialog):
             "fiado": "Fiado / Crédito",
             "efectivo": "Efectivo",
         }.get(raw, raw.replace("_", " ").title() or "—")
+
+    def refrescar_por_tasa(self):
+        """Reconstruir el detalle: el saldo pendiente se refleja a la tasa vigente."""
+        try:
+            self._construir()
+        except Exception:
+            pass
 
     def _construir(self):
         import json as _json

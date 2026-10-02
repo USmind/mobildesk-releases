@@ -634,6 +634,17 @@ class FiadosWindow(QDialog):
             btn.style().unpolish(btn)
             btn.style().polish(btn)
 
+    def refrescar_por_tasa(self):
+        """Recalcular saldos y KPIs con la tasa vigente.
+
+        La tabla de clientes guarda el Bs ya calculado, asi que hay que recargarla:
+        si no, seguia mostrando la cifra anterior al cambiar la tasa.
+        """
+        try:
+            self.cargar_deudas()
+        except Exception:
+            pass
+
     def cargar_deudas(self):
         self.deudas = get_credit_debts()
         rate = get_current_rate_value() or 0

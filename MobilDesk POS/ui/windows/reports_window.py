@@ -245,6 +245,13 @@ class ReportsWindow(QDialog):
         f_fin = self.date_hasta.date().toString("yyyy-MM-dd")
         return f_ini, f_fin
 
+    def refrescar_por_tasa(self):
+        """Recalcular KPIs al cambiar la tasa (los saldos pendientes en Bs)."""
+        try:
+            self.cargar_reporte()
+        except Exception:
+            pass
+
     def cargar_reporte(self):
         f_ini, f_fin = self.obtener_rango_fechas()
         u_id = self.user["id"] if (self.user and self.user["role"] == "vendedor") else None

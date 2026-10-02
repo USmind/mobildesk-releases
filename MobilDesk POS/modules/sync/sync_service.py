@@ -325,6 +325,7 @@ def _apply_remote_event(connection, event):
     if kind == "tasa_cambio_actualizada":
         # Solo actualizar el margen si el evento lo trae. Si no viene, NO ponerlo en 0
         # (eso borra el margen de ganancia configurado).
+        tasa_cambio = False
         if "tasa" in data:
             tasa = float(data.get("tasa") or 0)
             if tasa > 0:
@@ -332,11 +333,20 @@ def _apply_remote_event(connection, event):
                     "INSERT INTO exchange_rates(valor, usuario_id) VALUES(?, ?)",
                     (tasa, _user_id(connection)),
                 )
+                tasa_cambio = True
         if "margen" in data and data.get("margen") is not None:
             connection.execute(
                 "UPDATE pricing_settings SET porcentaje_ganancia=? WHERE id=1",
                 (float(data["margen"]),),
             )
+        if tasa_cambio:
+            # La tasa cambio en el movil: refrescar las ventanas abiertas de la PC.
+            # Sin esto, Fiados/Ventas/Ticket seguian con la tasa anterior.
+            try:
+                from ui.rate_bus import notificar_cambio_tasa
+                notificar_cambio_tasa()
+            except Exception:
+                pass
     elif kind == "negocio_config_actualizada":
         # La app móvil solo envía nombre_negocio. NO sobreescribir los demás campos
         # (identificacion/telefono/direccion/mensaje_ticket) si el evento no los trae,
