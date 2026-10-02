@@ -1,10 +1,10 @@
 {
-  "version": "2.0.34",
-  "pc_version": "2.0.34",
-  "android_version": "1.2.14",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.34/Instalar-MobilDesk-v2.0.34.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.34/Instalar-MobilDesk-v2.0.34.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.34/MobilDesk-v1.2.14.apk",
-  "pc_sha256": "a255203e35c38cf3ce573e863e63dbbb4a563b2a6cd12417e902ca18136d4232",
-  "changelog": "Los fiados ahora se revaloran a la tasa USD/Bs vigente: el saldo en dolares es la fuente de verdad y el monto en Bs se recalcula al cambiar la tasa. Corrige el abono rechazado con el mensaje 'el pago supera el saldo pendiente', el saldo congelado que mostraba un monto distinto entre la computadora y el movil, y agrega buscador en el historial de ventas de la app."
+  "version": "2.0.35",
+  "pc_version": "2.0.35",
+  "android_version": "1.2.15",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.35/Instalar-MobilDesk-v2.0.35.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.35/Instalar-MobilDesk-v2.0.35.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.35/MobilDesk-v1.2.15.apk",
+  "pc_sha256": "0d3828c368212926058df19cf55570857cc0c770d6bf36fa8a0d8c1d75a356a4",
+  "changelog": "PC y App ahora funcionan igual. Al cambiar la tasa, todas las ventanas abiertas (Fiados, Ventas, Ticket, Reportes, Caja) se actualizan al instante, sin pulsar Actualizar. El carrito del POS se revalora con la tasa nueva. En la App, Fiados y Cobrar se unifican en una sola pantalla agrupada por cliente; el buscador se limpia solo al agregar un producto; se agregan Reportes y Ticket de venta. Nuevo boton para borrar todos los datos con respaldo automatico."
 }
