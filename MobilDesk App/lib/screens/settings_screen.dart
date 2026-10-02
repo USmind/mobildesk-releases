@@ -80,13 +80,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
+    // Tras el return anterior, 'info' ya es no nulo por el flujo de control.
+    final nuevaVersion = info;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Actualización disponible: v${info!['version']}'),
+        title: Text('Actualización disponible: v${nuevaVersion['version']}'),
         content: Text(
-          'Versión instalada: ${info!['current_version']}\n\n'
-          '${info!['changelog']}\n\n'
+          'Versión instalada: ${nuevaVersion['current_version']}\n\n'
+          '${nuevaVersion['changelog']}\n\n'
           '¿Descargar e instalar ahora?',
         ),
         actions: [
@@ -107,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     BuildContext? dialogContext;
 
     unawaited(
-      widget.state.downloadApk(info!['download_url'], (percent, downloaded, total) {
+      widget.state.downloadApk(nuevaVersion['download_url'], (percent, downloaded, total) {
         progreso.value = percent;
       }).then((path) {
         apkPath = path;
@@ -156,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (apkPath == null) {
       // Fallback: abrir en navegador para descarga manual
       try {
-        final uri = Uri.parse(info!['download_url']);
+        final uri = Uri.parse(nuevaVersion['download_url']);
         final ok = await widget.state.openDownloadInBrowser(uri.toString());
         if (!mounted) return;
         final detalle = errorDescarga == null ? '' : ' ($errorDescarga)';

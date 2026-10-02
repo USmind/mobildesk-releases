@@ -29,12 +29,6 @@ class DashboardScreen extends StatelessWidget {
     final totalBsToday = salesToday.fold<double>(0, (sum, s) => sum + s.totalBs);
     final totalUsdToday = salesToday.fold<double>(0, (sum, s) => sum + s.totalUsd);
 
-    // Sync status colors
-    final isSynced = state.syncStatus.contains('Sincronizado');
-    final isError = state.syncStatus.contains('Error') ||
-        state.syncStatus.contains('vencida') ||
-        state.syncStatus.contains('Sin conexión');
-
     return Scaffold(
       backgroundColor: DesignTokens.background,
       appBar: AppBar(
