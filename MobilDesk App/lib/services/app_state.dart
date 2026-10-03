@@ -818,17 +818,33 @@ class AppState extends ChangeNotifier {
     if (lower.contains('invalid login') || lower.contains('invalid credentials')) {
       return 'El correo o la contraseña no son correctos.';
     }
-    if (lower.contains('permission denied') || lower.contains('camera permission')) {
-      return 'Permiso de cámara denegado. Ve a Ajustes > Aplicaciones > MobilDesk POS > Permisos > Cámara y actívalo.';
+    // La tabla en la nube todavia no existe. Es lo mas frecuente al actualizar
+    // y hay que decirlo claro, porque el mensaje tecnico termina en 'null' y
+    // el movil lo muestra como 'Error interno'.
+    if (lower.contains('pgrst205') ||
+        lower.contains('could not find the table') ||
+        lower.contains('schema cache')) {
+      return 'La nube todavia no tiene la tabla de sincronizacion.\n\n'
+          'Ejecuta en Supabase el archivo\n'
+          'sql/01_crear_mobildesk_eventos.sql\n'
+          'y luego sql/02_registrar_llave.sql.\n\n'
+          'Puedes vender con normalidad: todo queda guardado en este\n'
+          'telefono y se subira al completarlo.';
+    }
+    if (lower.contains('permission denied') && !lower.contains('camera permission')) {
+      return 'El servidor de sincronizacion esta actualizando permisos. Reintenta en unos segundos.';
+    }
+    if (lower.contains('camera permission')) {
+      return 'Permiso de camara denegado. Ve a Ajustes > Aplicaciones > MobilDesk POS > Permisos > Camara y activalo.';
     }
     if (lower.contains('camera') && lower.contains('not available')) {
-      return 'La cámara no está disponible en este dispositivo.';
+      return 'La camara no esta disponible en este dispositivo.';
     }
     if (lower.contains('unexpected error') || lower.contains('unexpected error occurred')) {
-      return 'Ocurrió un error inesperado. Intenta de nuevo.';
+      return 'Ocurrio un error inesperado. Intenta de nuevo.';
     }
     if (lower.contains('null') || lower.contains('null object reference')) {
-      return 'Error interno. Reinicia la aplicación e inténtalo de nuevo.';
+      return 'Error interno. Reinicia la aplicacion e intentalo de nuevo.';
     }
     return 'Aviso: $raw';
   }

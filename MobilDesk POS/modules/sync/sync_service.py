@@ -84,11 +84,22 @@ def _is_duplicate_key_error(detail):
 def _translate_error(detail, status_code=None):
     """Traduce cualquier error técnico a un mensaje claro y amigable en español."""
     msg = str(detail).lower()
+    # La tabla no existe todavia: casi siempre significa que el instalador del
+    # servidor (archivo sql/01_crear_mobildesk_eventos.sql) no se ha ejecutado.
+    if "pgrst205" in msg or "could not find the table" in msg or "schema cache" in msg:
+        return (
+            "La nube todavía no tiene la tabla de sincronización.\n\n"
+            "Ejecuta en Supabase → SQL Editor el archivo\n"
+            "sql/01_crear_mobildesk_eventos.sql\n"
+            "y luego sql/02_registrar_llave.sql.\n\n"
+            "Mientras tanto el programa sigue funcionando: los datos quedan\n"
+            "guardados en este equipo y se subirán al completarlo."
+        )
     if "permission denied" in msg or "42501" in msg or status_code == 401:
         return "El servidor de sincronización está actualizando permisos. Reintenta en unos segundos."
     if "email_not_confirmed" in msg:
         return "Verificación pendiente en el servidor."
-    if "invalid_credentials" in msg or "invalid login" in msg:
+    if "invalid_credentials" in msg or "invalid_login" in msg:
         return "El código de negocio no es válido."
     if "over_request_rate_limit" in msg or "429" in msg or "too many" in msg:
         return "Conexión ocupada. Reintentando sincronización automáticamente..."
