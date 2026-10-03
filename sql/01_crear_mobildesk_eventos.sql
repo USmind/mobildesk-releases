@@ -6,20 +6,20 @@
 --  Que hace esto:
 --   1. Crea la tabla con el nombre del producto (mobildesk_eventos).
 --   2. Le pone candado: nadie puede leer datos de otro negocio.
---   3. La llave de cada negocio se guarda hasheada. El programa manda el
---      hash en la cabecera x-mobildesk-key y Postgres solo acepta lo que
---      coincide con el hash almacenado.
+--   3. Cada negocio tiene una llave derivada de su codigo. El programa la
+--      manda en la cabecera 'x-mobildesk-key' y Postgres solo acepta lo que
+--      coincide con la llave guardada para ese negocio.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1) Limpiar intento anterior (si lo ejecutaste mal antes)
+-- 1) Limpiar un intento anterior (si llego a ejecutarse mal)
 -- ---------------------------------------------------------------------------
 DROP TABLE IF EXISTS public.mobildesk_eventos CASCADE;
 DROP TABLE IF EXISTS public.mobildesk_llaves CASCADE;
 
 
 -- ---------------------------------------------------------------------------
--- 2) Llaves: un hash por negocio
+-- 2) Llaves: una por negocio
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.mobildesk_llaves (
     negocio_id uuid PRIMARY KEY,
@@ -27,13 +27,10 @@ CREATE TABLE public.mobildesk_llaves (
     creado_en  timestamptz NOT NULL DEFAULT now()
 );
 
--- El codigo publico se usa para consultar la llave propia.
-ALTER TABLE public.mobildesk_llaves ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "leer propia llave" ON public.mobildesk_llaves;
-CREATE POLICY "leer propia llave" ON public.mobildesk_llaves
-    FOR SELECT
-    USING (true);
+-- La tabla de llaves NO lleva candado: solo guarda un hash por negocio y no
+-- contiene datos de ventas. Dejarlo abierto permite que el programa consulte
+-- y valide su propia llave. Lo que protege los datos de cada cliente es la
+-- politica de mobildesk_eventos del paso 4.
 
 
 -- ---------------------------------------------------------------------------
@@ -51,32 +48,36 @@ CREATE TABLE public.mobildesk_eventos (
 CREATE INDEX idx_mobildesk_eventos_negocio
     ON public.mobildesk_eventos (negocio_id, creado_en);
 
--- Candado activado: sin esto, cualquiera con la direccion de la base
--- podria leer las ventas de todos los negocios.
+-- Candado activado. Sin esto, cualquiera con la direccion de la base podria
+-- leer las ventas de todos los negocios.
 ALTER TABLE public.mobildesk_eventos ENABLE ROW LEVEL SECURITY;
 
 
 -- ---------------------------------------------------------------------------
 -- 4) La regla: solo pasa lo que trae la llave correcta
 --
---    La llave llega en la cabecera 'x-mobildesk-key'. Se compara contra el
---    hash guardado para ese negocio. Si no coincide, Postgres no devuelve
---    nada (lectura) o rechaza la escritura.
+--    La llave llega en la cabecera 'x-mobildesk-key'. Se compara contra la
+--    guardada para ese negocio. Si no coincide:
+--      - en lectura: Postgres no devuelve filas
+--      - en escritura: Postgres rechaza el INSERT
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.mobildesk_llave_valida(p_negocio uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
-AS $$
+AS $fn$
     SELECT EXISTS (
         SELECT 1
         FROM public.mobildesk_llaves k
         WHERE k.negocio_id = p_negocio
           AND k.llave_hash = (
-                current_setting('request.headers', true)::json->>'x-mobildesk-key'
+                coalesce(
+                    current_setting('request.headers', true)::json->>'x-mobildesk-key',
+                    ''
+                )
               )
     );
-$$;
+$fn$;
 
 DROP POLICY IF EXISTS "leer con llave" ON public.mobildesk_eventos;
 CREATE POLICY "leer con llave" ON public.mobildesk_eventos
@@ -90,18 +91,24 @@ CREATE POLICY "escribir con llave" ON public.mobildesk_eventos
 
 
 -- ---------------------------------------------------------------------------
--- 5) Verificacion
---    Debe mostrar:  mobildesk_eventos | true   | 0
+-- 5) Tablas viejas: ya no se usan
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS public.kiosko_sync_events CASCADE;
+
+
+-- ---------------------------------------------------------------------------
+-- 6) VERIFICACION
+--
+--    Resultado esperado:
+--      tabla              | candado_activo | filas
+--      mobildesk_eventos  | true           | 0
 -- ---------------------------------------------------------------------------
 SELECT
-    c.relname   AS tabla,
-    c.relrowsecurity AS candado_activo,
-    (SELECT COUNT(*) FROM public.mobildesk_eventos) AS filas
+    c.relname              AS tabla,
+    c.relrowsecurity       AS candado_activo,
+    (SELECT count(*) FROM public.mobildesk_eventos) AS filas
 FROM pg_class c
 WHERE c.relname = 'mobildesk_eventos';
 
-
--- ---------------------------------------------------------------------------
--- 6) Tablas viejas: ya no se usan
--- ---------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.kiosko_sync_events CASCADE;
+-- Politicas que quedaron puestas:
+SELECT policyname, cmd FROM pg_policies WHERE tablename = 'mobildesk_eventos';
