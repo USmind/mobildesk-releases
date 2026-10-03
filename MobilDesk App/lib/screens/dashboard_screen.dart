@@ -5,6 +5,7 @@ import '../services/app_state.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/states.dart';
 import '../utils.dart';
+import '../widgets/sale_detail.dart';
 import 'reports_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -353,6 +354,7 @@ class DashboardScreen extends StatelessWidget {
                         color: DesignTokens.surface,
                         child: ListTile(
                           contentPadding: DesignTokens.paddingSymmetric(h: 'md', v: 'xs'),
+                          onTap: () => showSaleDetailDialog(context, state, sale),
                           leading: CircleAvatar(
                             backgroundColor: sale.esFiada ? DesignTokens.warningContainer : DesignTokens.primaryContainer,
                             child: Icon(

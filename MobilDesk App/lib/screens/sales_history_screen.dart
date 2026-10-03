@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'ticket_screen.dart';
+import '../widgets/sale_detail.dart';
 import '../theme/design_tokens.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
@@ -135,98 +135,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> with SingleTick
   }
 
   void _showSaleDetail(Sale sale) {
-    final pd = sale.pagosDetalle;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: DesignTokens.borderRadius('lg')),
-        title: Text('Factura #${sale.numeroFactura}', style: DesignTokens.style('titleLarge')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${sale.fecha.split('T').first} · ${sale.metodoPago.toUpperCase()}',
-                style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted),
-              ),
-              if (sale.clienteNombre != null && sale.clienteNombre!.isNotEmpty) ...[
-                DesignTokens.spaceXs.height,
-                Text('Cliente: ${sale.clienteNombre}', style: DesignTokens.style('bodyMedium').copyWith(fontWeight: FontWeight.bold)),
-              ],
-              DesignTokens.spaceSm.height,
-              Text('Productos (${sale.productos.length})', style: DesignTokens.style('bodyMedium').copyWith(fontWeight: FontWeight.bold)),
-              const Divider(height: 12),
-              if (sale.productos.isEmpty)
-                Text('Sin detalle de productos.', style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted))
-              else
-                ...sale.productos.map((p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              softWrap: true,
-                              '${p.cantidad.toStringAsFixed(p.cantidad.truncateToDouble() == p.cantidad ? 0 : 2)} x ${p.nombre.isNotEmpty ? p.nombre : p.codigo}',
-                              style: DesignTokens.style('bodySmall'),
-                            ),
-                          ),
-                          Text(
-                            'Bs ${_currencyFormat.format(p.cantidad * p.precioUsd * sale.tasa)}',
-                            style: DesignTokens.style('bodySmall').copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    )),
-              const Divider(height: 12),
-              Text('Total: Bs ${_currencyFormat.format(sale.totalBs)} (\$${_currencyFormat.format(sale.totalUsd)})',
-                  style: DesignTokens.style('bodyMedium').copyWith(fontWeight: FontWeight.bold)),
-              Text('Tasa: Bs ${_currencyFormat.format(sale.tasa)}',
-                  style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.textMuted)),
-              if (pd != null && sale.metodoPago == 'mixto') ...[
-                DesignTokens.spaceXs.height,
-                if (pd.divisasUsd > 0)
-                  Text('  • Divisas: \$${_currencyFormat.format(pd.divisasUsd)}', style: DesignTokens.style('bodySmall')),
-                if (pd.efectivoBs > 0)
-                  Text('  • Efectivo: Bs ${_currencyFormat.format(pd.efectivoBs)}', style: DesignTokens.style('bodySmall')),
-                if (pd.pagoMovilBs > 0)
-                  Text('  • Pago Móvil: Bs ${_currencyFormat.format(pd.pagoMovilBs)}', style: DesignTokens.style('bodySmall')),
-                if (pd.tarjetaBs > 0)
-                  Text('  • Tarjeta: Bs ${_currencyFormat.format(pd.tarjetaBs)}', style: DesignTokens.style('bodySmall')),
-                if (pd.fiadoBs > 0)
-                  Text('  • Fiado: Bs ${_currencyFormat.format(pd.fiadoBs)}', style: DesignTokens.style('bodySmall')),
-              ],
-              if (sale.esFiada) ...[
-                DesignTokens.spaceXs.height,
-                Text('Saldo pendiente: Bs ${_currencyFormat.format(sale.saldoPendiente)}',
-                    style: DesignTokens.style('bodyMedium').copyWith(fontWeight: FontWeight.bold, color: DesignTokens.warning)),
-              ],
-              if (sale.vueltoBs > 0)
-                Text('Vuelto: Bs ${_currencyFormat.format(sale.vueltoBs)}',
-                    style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.success)),
-              if (sale.vueltoUsd > 0)
-                Text('Vuelto: \$${_currencyFormat.format(sale.vueltoUsd)}',
-                    style: DesignTokens.style('bodySmall').copyWith(color: DesignTokens.success)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                ctx,
-                MaterialPageRoute(
-                  builder: (_) => TicketScreen(state: widget.state, sale: sale),
-                ),
-              );
-            },
-            child: Text('Ver Ticket', style: DesignTokens.style('labelLarge')),
-          ),
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
-        ],
-      ),
-    );
+    // Usa el dialogo compartido: el mismo que se abre desde el inicio.
+    // Antes habia una copia separada aqui; cualquier cambio habia que
+    // hacerlo en dos sitios y se desincronizaban.
+    showSaleDetailDialog(context, widget.state, sale);
   }
 
   /// Saldo pendiente en USD de una venta. El Bs es derivado, el USD es la verdad.
