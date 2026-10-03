@@ -1,10 +1,10 @@
 {
   "version": "2.0.38",
   "pc_version": "2.0.38",
-  "android_version": "1.2.17",
+  "android_version": "1.2.18",
   "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/Instalar-MobilDesk-v2.0.38.exe",
   "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/Instalar-MobilDesk-v2.0.38.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/MobilDesk-v1.2.17.apk",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/MobilDesk-v1.2.18.apk",
   "pc_sha256": "4d0ddca060978cf6e04a366148f0f2e56f321897b77d2823f44cbb51b3ebd1f1",
   "changelog": "Mensajes claros cuando la nube aun no esta lista: en vez de 'error interno' ahora dice que archivo SQL ejecutar y aclara que el programa sigue funcionando. El SQL del candado corregido. Verificado que sin internet se puede vender y cobrar fiados sin perder datos."
 }
