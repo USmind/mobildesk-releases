@@ -244,26 +244,18 @@ class BusinessSettingsWindow(QDialog):
             )
             return
 
-        credenciales = resultado.get("credenciales")
         total = sum(resultado["eliminadas"].values())
         filas = "\n".join(f"  · {t.replace('_', ' ')}: {n}" for t, n in sorted(resultado["eliminadas"].items()))
-
-        texto_extra = ""
-        if credenciales:
-            usuario_nuevo, clave = credenciales
-            texto_extra = (
-                f"\n\n<b>Usuario generado:</b> {usuario_nuevo}\n"
-                f"<b>Contraseña temporal:</b> {clave}\n"
-                "<i>Anótala ahora: no se volverá a mostrar.</i>"
-            )
 
         QMessageBox.information(
             self,
             "Datos borrados",
             f"Se borraron {total} registros:\n{filas}\n\n"
-            f"<b>Respaldo guardado en:</b>\n{resultado['respaldo']}"
-            f"{texto_extra}\n\n"
-            "El programa se reiniciará para tomar los cambios.",
+            f"<b>Respaldo guardado en:</b>\n{resultado['respaldo']}\n\n"
+            "El programa se reiniciará y mostrará la pantalla de\n"
+            "Configuración Inicial para que crees el negocio y elijas\n"
+            "tu usuario y tu contraseña.\n\n"
+            "También tendrás que volver a activar la licencia.",
         )
         self.datos_borrados.emit()
 

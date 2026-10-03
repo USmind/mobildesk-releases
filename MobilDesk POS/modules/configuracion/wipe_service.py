@@ -104,8 +104,39 @@ def crear_respaldo(destino=None):
     return destino
 
 
-def borrar_todos_los_datos(incluir_sistema=True, usuario_rol="admin",
-                            crear_admin=True):
+def _avisar_celular_que_se_borro(negocio_id):
+    """
+    Avisa directamente a la nube para que el móvil borre también sus datos.
+
+    No usa la cola de sync_outbox a propósito: esa cola se limpia durante el
+    borrado y 'sync_now' puedemeter un snapshot que se cuelgue antes de enviar
+    este aviso. Ir directo por HTTP garantiza que el móvil se entere.
+    """
+    if not negocio_id:
+        return False
+    try:
+        from modules.sync.sync_service import (
+            SUPABASE_URL, _request, _now, to_valid_uuid, derivar_llave,
+        )
+        import uuid as _uuid
+        payload = {
+            "id": str(_uuid.uuid4()),
+            "negocio_id": to_valid_uuid(negocio_id),
+            "dispositivo_id": to_valid_uuid("pc-borrado"),
+            "tipo": "negocio_datos_borrados",
+            "datos": {"motivo": "El administrador borró todos los datos desde la computadora"},
+            "creado_en": _now(),
+        }
+        _request(
+            SUPABASE_URL + "/rest/v1/mobildesk_eventos", "POST", payload, None,
+            llave=derivar_llave(negocio_id),
+        )
+        return True
+    except Exception:
+        return False
+
+
+def borrar_todos_los_datos(incluir_sistema=True, usuario_rol="admin"):
     """
     Borra todos los datos del negocio. Devuelve un resumen de lo eliminado.
 
@@ -126,10 +157,16 @@ def borrar_todos_los_datos(incluir_sistema=True, usuario_rol="admin",
         if incluir_sistema:
             tablas += list(TABLAS_SISTEMA)
 
-        # Si no hay usuarios y el borrado es total, el programa quedaria
-        # bloqueado sin forma de entrar. Para eso se crea un admin por defecto
-        # al final de este bloque.
-        self_insert = bool(crear_admin and incluir_sistema and "users" in existentes)
+        avisado = False
+        try:
+            fila = connection.execute(
+                "SELECT valor FROM sync_settings WHERE clave='negocio_id'"
+            ).fetchone()
+            negocio_id = fila[0] if fila else None
+            if negocio_id:
+                avisado = _avisar_celular_que_se_borro(negocio_id)
+        except sqlite3.Error:
+            pass
 
         connection.execute("PRAGMA foreign_keys = OFF")
         eliminadas = {}
@@ -144,9 +181,11 @@ def borrar_todos_los_datos(incluir_sistema=True, usuario_rol="admin",
             except sqlite3.Error as e:
                 raise sqlite3.Error(f"No se pudo borrar la tabla '{tabla}': {e}")
 
-        credenciales = None
-        if self_insert and "users" in existentes:
-            credenciales = _crear_admin_por_defecto(connection)
+        # NO se crea ningún usuario. El programa decide la pantalla de inicio
+        # contando los usuarios reales: si no hay ninguno, muestra la pantalla
+        # de Configuración Inicial para que el usuario elija su propia clave.
+        # Antes se creaba un 'admin' con clave aleatoria y eso dejaba el programa
+        # bloqueado en la pantalla de acceso con una contraseña desconocida.
 
         connection.execute("DELETE FROM sqlite_sequence WHERE name IN (" +
                           ",".join("?" * len(tablas)) + ")", tablas)
@@ -164,27 +203,10 @@ def borrar_todos_los_datos(incluir_sistema=True, usuario_rol="admin",
         except Exception:
             pass
 
-    return {"respaldo": respaldo, "eliminadas": eliminadas, "credenciales": credenciales}
-
-
-def _crear_admin_por_defecto(connection):
-    """
-    Tras un borrado total se crea un administrador por defecto para que el
-    programa siga siendo usable. La clave se genera al azar y se devuelve una
-    sola vez, para que el usuario la cambie al entrar.
-    """
-    import hashlib
-    import secrets
-    from datetime import datetime as _dt
-
-    usuario = "admin"
-    clave = secrets.token_urlsafe(6)
-    hash_clave = hashlib.sha256(clave.encode("utf-8")).hexdigest()
-    ahora = _dt.now().isoformat()
-    connection.execute(
-        "INSERT INTO users(nombre, username, password_hash, role, activo, fecha_creacion)"
-        " VALUES(?,?,?,?,1,?)",
-        ("Administrador", usuario, hash_clave, "admin", ahora),
-    )
-    connection.commit()
-    return usuario, clave
+    # El aviso se mandó por HTTP antes de limpiar; no hace falta tocar la cola.
+    return {
+        "respaldo": respaldo,
+        "eliminadas": eliminadas,
+        "credenciales": None,
+        "movil_avisado": avisado,
+    }

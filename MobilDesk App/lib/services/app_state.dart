@@ -15,6 +15,11 @@ import 'net_stub.dart';
 import 'bcv_service.dart';
 import '../config.dart';
 
+/// Clave donde se guarda el estado local del móvil (datos + cola de eventos).
+/// Antes estaba escrita como texto literal 'kiosko_state_v6' en varios puntos,
+/// lo que hacía fácil olvidarla al limpiarla.
+const String kPrefState = 'kiosko_state_v6';
+
 String toValidUuid(String text) {
   final trimmed = text.trim().toLowerCase();
   final regex = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
@@ -23,6 +28,23 @@ String toValidUuid(String text) {
   }
   final digest = md5.convert(utf8.encode(trimmed)).toString();
   return '${digest.substring(0, 8)}-${digest.substring(8, 12)}-${digest.substring(12, 16)}-${digest.substring(16, 20)}-${digest.substring(20, 32)}';
+}
+
+/// Semilla para derivar la llave del negocio. Debe ser IDENTICA a la del PC
+/// (modules/sync/sync_service.py), porque ambos calculan la llave a partir del
+/// mismo codigo de negocio sin tener que descargarla de la nube.
+const String kLlaveSemilla = 'mobildesk-sync-v1';
+
+/// Calcula la llave del negocio a partir de su codigo.
+///
+/// Es determinista: el mismo codigo produce siempre la misma llave, de modo que
+/// el movil y la computadora generan la misma. Postgres la valida para que cada
+/// negocio solo vea lo suyo.
+String derivarLlave(String codigoNegocio) {
+  final base = codigoNegocio.trim().toLowerCase();
+  if (base.isEmpty) return '';
+  final hmacSha256 = Hmac(sha256, utf8.encode(kLlaveSemilla));
+  return hmacSha256.convert(utf8.encode(base)).toString();
 }
 
 class AppState extends ChangeNotifier {
@@ -145,7 +167,7 @@ class AppState extends ChangeNotifier {
     profitMargin = prefs.getDouble('profitMargin') ?? 0.0;
     lastSyncTime = prefs.getString('lastSyncTime');
 
-    final rawState = prefs.getString('kiosko_state_v6');
+    final rawState = prefs.getString(kPrefState);
     if (rawState != null) {
       try {
         final data = jsonDecode(rawState) as Map<String, dynamic>;
@@ -236,7 +258,7 @@ class AppState extends ChangeNotifier {
       'licPlan': licPlan,
       'licFechaExpiracion': licFechaExpiracion,
     };
-    await prefs.setString('kiosko_state_v6', jsonEncode(rawData));
+    await prefs.setString(kPrefState, jsonEncode(rawData));
   }
 
   double calculateStock(String codigo) {
@@ -430,7 +452,7 @@ class AppState extends ChangeNotifier {
     sync();
   }
 
-  void applyLocalEvent(String tipo, Map<String, dynamic> datos, [String? id]) {
+  Future<void> applyLocalEvent(String tipo, Map<String, dynamic> datos, [String? id]) async {
     if (tipo == 'tasa_cambio_actualizada') {
       final rate = double.tryParse(datos['tasa']?.toString() ?? '');
       final margin = double.tryParse(datos['margen']?.toString() ?? '');
@@ -439,6 +461,11 @@ class AppState extends ChangeNotifier {
       // Revalorar los saldos fiados con la tasa que acaba de llegar del PC,
       // para que el movil muestre lo mismo que la computadora.
       _revalorarSaldos();
+    } else if (tipo == 'negocio_datos_borrados') {
+      // El administrador borró todo desde la computadora: el móvil debe
+      // quedarse igual de vacío, si no conserva datos de un negocio que ya no
+      // existen y vuelve a subirlos en la siguiente sincronización.
+      await _borrarTodoLocalmente();
     } else if (tipo == 'negocio_config_actualizada') {
       final name = datos['nombre_negocio']?.toString();
       if (name != null && name.trim().isNotEmpty) {
@@ -606,7 +633,7 @@ class AppState extends ChangeNotifier {
     if (businessId == null || businessId!.isEmpty) {
       final user = sessionData['user'] as Map<String, dynamic>?;
       final metadata = user?['user_metadata'] as Map<String, dynamic>?;
-      businessId = metadata?['negocio_id']?.toString() ?? 'kiosko-default';
+      businessId = metadata?['negocio_id']?.toString() ?? 'mobildesk-default';
     }
 
     products.clear();
@@ -625,7 +652,7 @@ class AppState extends ChangeNotifier {
     await prefs.remove('token');
     await prefs.remove('refreshToken');
     await prefs.remove('businessId');
-    await prefs.remove('kiosko_state_v6');
+    await prefs.remove(kPrefState);
     token = null;
     refreshToken = null;
     businessId = null;
@@ -637,6 +664,42 @@ class AppState extends ChangeNotifier {
     seenEvents.clear();
     syncStatus = 'Sesión cerrada';
     lastErrorMessage = null;
+    notifyListeners();
+  }
+
+  /// Vacía por completo los datos guardados en el móvil.
+  ///
+  /// Se llama al recibir el evento 'negocio_datos_borrados', que envía la
+  /// computadora cuando el administrador borra todos los datos. Se elimina
+  /// también el código de negocio y la sesión, para que la app vuelva al
+  /// estado de instalación nueva: nada de lo que había antes debe quedar.
+  Future<void> _borrarTodoLocalmente() async {
+    products.clear();
+    movements.clear();
+    sales.clear();
+    outbox.clear();
+    seenEvents.clear();
+    appUsers = [];
+    lastErrorMessage = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    // El estado guardado y la clave del código permitirían reconstruir datos
+    // que ya no existen; se borran ambas cosas.
+    await prefs.remove(kPrefState);
+    await prefs.remove('token');
+    await prefs.remove('refreshToken');
+    await prefs.remove('businessId');
+    await prefs.remove('email');
+    await prefs.remove('businessName');
+
+    token = null;
+    refreshToken = null;
+    businessId = null;
+    email = null;
+    businessName = 'MobilDesk POS';
+    exchangeRate = 763.0;
+    profitMargin = 0.0;
+    syncStatus = 'Los datos del negocio fueron borrados desde la computadora';
     notifyListeners();
   }
 
@@ -662,7 +725,7 @@ class AppState extends ChangeNotifier {
       for (final event in outboxCopy) {
         try {
           await _authenticatedApi(
-            '/rest/v1/kiosko_sync_events',
+            '/rest/v1/mobildesk_eventos',
             'POST',
             {
               'id': toValidUuid(event['id']),
@@ -687,7 +750,7 @@ class AppState extends ChangeNotifier {
 
       while (hasMore) {
         final remoteEvents = await _authenticatedApi(
-          '/rest/v1/kiosko_sync_events?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid&order=creado_en.asc&limit=$pageSize&offset=$offset',
+          '/rest/v1/mobildesk_eventos?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid&order=creado_en.asc&limit=$pageSize&offset=$offset',
           'GET',
         );
 
@@ -698,7 +761,7 @@ class AppState extends ChangeNotifier {
             if (seenEvents.add(eventId)) {
               final tipo = eventMap['tipo']?.toString() ?? '';
               final datos = Map<String, dynamic>.from(eventMap['datos'] ?? {});
-              applyLocalEvent(tipo, datos, eventId);
+              await applyLocalEvent(tipo, datos, eventId);
             }
           }
           if (remoteEvents.length < pageSize) {
@@ -732,7 +795,7 @@ class AppState extends ChangeNotifier {
     final lower = raw.toLowerCase();
     return lower.contains('duplicate key') ||
         lower.contains('23505') ||
-        lower.contains('kiosko_sync_events_pkey') ||
+        lower.contains('mobildesk_eventos_pkey') ||
         lower.contains('already exists');
   }
 
@@ -771,19 +834,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<dynamic> _authenticatedApi(String path, String method, [Object? data]) async {
+    // La llave se deriva del codigo de negocio y la valida Postgres para aislar
+    // los datos de cada cliente en la nube.
+    final llave = businessId == null ? '' : derivarLlave(businessId!);
     try {
-      return await _rawApi(path, method, data, token);
+      return await _rawApi(path, method, data, token, llave);
     } catch (e) {
       if (token != null) {
         try {
-          return await _rawApi(path, method, data, null);
+          return await _rawApi(path, method, data, null, llave);
         } catch (_) {}
       }
       rethrow;
     }
   }
 
-  static Future<dynamic> _rawApi(String path, String method, [Object? data, String? authToken]) async {
+  static Future<dynamic> _rawApi(String path, String method, [Object? data, String? authToken, String? llave]) async {
     final headers = <String, String>{
       'apikey': kSupabaseKey,
       'Accept': 'application/json',
@@ -791,6 +857,11 @@ class AppState extends ChangeNotifier {
     };
     if (authToken != null && authToken.isNotEmpty) {
       headers['Authorization'] = 'Bearer $authToken';
+    }
+    // Cabecera que valida el candado en Postgres. Sin ella, la base rechaza
+    // la peticion aunque la clave publica sea correcta.
+    if (llave != null && llave.isNotEmpty) {
+      headers['x-mobildesk-key'] = llave;
     }
     final body = data != null ? jsonEncode(data) : null;
     final text = await fetchRaw(
@@ -937,8 +1008,18 @@ class AppState extends ChangeNotifier {
     if (businessId == null) return;
     try {
       final uuid = toValidUuid(businessId!);
-      final url = "$kSupabaseUrl/rest/v1/kiosko_sync_events?negocio_id=eq.$uuid&tipo=eq.usuario_sincronizado&select=datos&order=creado_en.desc&limit=100";
-      final text = await fetchRaw(url, headers: {"apikey": kSupabaseKey, "Authorization": "Bearer $kSupabaseKey"}, timeout: const Duration(seconds: 10));
+      final url = "$kSupabaseUrl/rest/v1/mobildesk_eventos?negocio_id=eq.$uuid&tipo=eq.usuario_sincronizado&select=datos&order=creado_en.desc&limit=100";
+      // La llave es obligatoria: sin ella el candado de Postgres rechaza la consulta.
+      final llave = derivarLlave(businessId!);
+      final text = await fetchRaw(
+        url,
+        headers: {
+          "apikey": kSupabaseKey,
+          "Authorization": "Bearer $kSupabaseKey",
+          "x-mobildesk-key": llave,
+        },
+        timeout: const Duration(seconds: 10),
+      );
       final List list = jsonDecode(text) as List;
       final Map<String, Map<String, dynamic>> byUser = {};
       for (final row in list) {

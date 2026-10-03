@@ -1,4 +1,4 @@
-"""Módulo de Sincronización en la Nube de Kiosko POS.
+"""Módulo de Sincronización en la Nube de MobilDesk POS.
 
 Sincronización integral y bidireccional (PC ↔ Teléfono Móvil) para:
 - Tasa Oficial de Cambio USD / Bs y Margen de Ganancia.
@@ -7,10 +7,15 @@ Sincronización integral y bidireccional (PC ↔ Teléfono Móvil) para:
 - Movimientos de Inventario y Ajustes de Stock.
 - Ventas, Facturación y Comprobantes.
 - Clientes, Fiados / Créditos y Abonos / Pagos de Deudas.
+
+La nube es un buzón: guarda los cambios para que el otro equipo los reciba.
+Cada negocio esta separado del resto mediante una llave derivada de su codigo,
+que viaja en la cabecera 'x-mobildesk-key' y valida la tabla en Postgres.
 """
 import json
 import uuid
 import hashlib
+import hmac
 import random
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
@@ -21,10 +26,34 @@ from database.connection import get_connection
 SUPABASE_URL = "https://atxeuhqhariymdqsbmpd.supabase.co"
 SUPABASE_KEY = "sb_publishable_6a_o_Jv_XhqZE9TP7mO2EA_gOeak-mL"
 
+# Semilla del codigo de negocio para derivar la llave de cada negocio.
+# No es un secreto: es la misma base en el PC y en el movil, de modo que ambos
+# calculan exactamente la misma llave a partir del codigo que escribio el
+# usuario. Lo que protege no es esta semilla, sino que la llave via sola y en
+# la base solo se guarda su hash.
+_LLAVE_SEMILLA = "mobildesk-sync-v1"
+
+
+def derivar_llave(codigo_negocio):
+    """
+    Calcula la llave de un negocio a partir de su codigo.
+
+    Es determinista: el mismo codigo produce siempre la misma llave, asi que la
+    computadora y el telefono generan la misma sin necesidad de descargarla.
+    """
+    base = str(codigo_negocio or "").strip().lower()
+    if not base:
+        return ""
+    return hmac.new(
+        _LLAVE_SEMILLA.encode("utf-8"),
+        base.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
 
 def to_valid_uuid(text):
     """Convierte cualquier código de negocio o texto a un UUID válido determinista."""
-    trimmed = str(text or "kiosko-default").strip().lower()
+    trimmed = str(text or "mobildesk-default").strip().lower()
     try:
         return str(uuid.UUID(trimmed))
     except Exception:
@@ -47,7 +76,7 @@ def _is_duplicate_key_error(detail):
     return (
         "duplicate key" in msg
         or "23505" in msg
-        or "kiosko_sync_events_pkey" in msg
+        or "mobildesk_eventos_pkey" in msg
         or "already exists" in msg
     )
 
@@ -66,7 +95,7 @@ def _translate_error(detail, status_code=None):
     return f"Aviso de sincronización: {detail}"
 
 
-def _request(url, method="GET", data=None, token=None):
+def _request(url, method="GET", data=None, token=None, llave=None):
     headers = {
         "apikey": SUPABASE_KEY,
         "Content-Type": "application/json",
@@ -74,6 +103,10 @@ def _request(url, method="GET", data=None, token=None):
     }
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    # Cabecera que valida el candado en Postgres. Sin ella, la base rechaza
+    # la peticion aunque la clave publica sea correcta.
+    if llave:
+        headers["x-mobildesk-key"] = llave
 
     body = json.dumps(data).encode("utf-8") if data is not None else None
     request = Request(url, data=body, headers=headers, method=method)
@@ -616,6 +649,9 @@ def sync_now():
     try:
         business_id = _setting(connection, "negocio_id") or get_business_id()
         valid_uuid = to_valid_uuid(business_id)
+        # Llave del negocio: la valida Postgres para aislar los datos de cada
+        # cliente en la nube.
+        llave = derivar_llave(business_id)
         device_id = _setting(connection, "dispositivo_id", f"pc-{str(uuid.uuid4())[:8]}")
 
         _queue_initial_snapshot(connection)
@@ -633,7 +669,7 @@ def sync_now():
                 "creado_en": _now(),
             }
             try:
-                _request(SUPABASE_URL + "/rest/v1/kiosko_sync_events", "POST", payload, None)
+                _request(SUPABASE_URL + "/rest/v1/mobildesk_eventos", "POST", payload, None, llave=llave)
                 connection.execute("UPDATE sync_outbox SET enviado_en=?, ultimo_error=NULL WHERE id=?", (_now(), row["id"]))
                 connection.execute("INSERT OR IGNORE INTO sync_applied_events(id) VALUES(?)", (row["id"],))
                 connection.commit()
@@ -651,10 +687,10 @@ def sync_now():
                 connection.commit()
                 raise
 
-        url = SUPABASE_URL + "/rest/v1/kiosko_sync_events?select=id,tipo,datos,creado_en&negocio_id=eq." + valid_uuid + "&order=creado_en.asc"
+        url = SUPABASE_URL + "/rest/v1/mobildesk_eventos?select=id,tipo,datos,creado_en&negocio_id=eq." + valid_uuid + "&order=creado_en.asc"
         remote_events = []
         try:
-            remote_events = _request(url, token=None)
+            remote_events = _request(url, token=None, llave=llave)
         except Exception:
             pass
 

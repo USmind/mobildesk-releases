@@ -1,10 +1,10 @@
 {
-  "version": "2.0.36",
-  "pc_version": "2.0.36",
-  "android_version": "1.2.15",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.36/Instalar-MobilDesk-v2.0.36.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.36/Instalar-MobilDesk-v2.0.36.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.35/MobilDesk-v1.2.15.apk",
-  "pc_sha256": "b1ac569354df24dc40e725749f24704a33494207d5900cca8c295fc9b88d40ee",
-  "changelog": "CORRECCION DE SINCRONIZACION: al escribir el codigo de negocio en la PC, los productos, ventas y movimientos ya se envian a la nube. Antes solo se llenaba la cola local y nunca se subia nada, por eso el telefono no recibia los datos de la computadora. La app no cambia."
+  "version": "2.0.37",
+  "pc_version": "2.0.37",
+  "android_version": "1.2.16",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.37/Instalar-MobilDesk-v2.0.37.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.37/Instalar-MobilDesk-v2.0.37.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.37/MobilDesk-v1.2.16.apk",
+  "pc_sha256": "30e096b3da5cccbba87e24464e574ae22df18bdf094564774b41ccd2a5824e86",
+  "changelog": "Borrar todos los datos ahora reinicia en Configuración Inicial (antes dejaba el login con una contraseña desconocida) y también borra el móvil. La nube se renombra de kiosko a mobildesk y se aísla por negocio: cada cliente solo puede leer sus propios datos. IMPORTANTE: requiere ejecutar los dos archivos SQL antes de usar el programa."
 }
