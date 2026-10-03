@@ -103,24 +103,6 @@ def search_clients(query="", limit=20):
         connection.close()
 
 
-def get_client_debt_total(cliente_id):
-    """Deuda total acumulada de un cliente (suma de sus facturas fiadas)."""
-    connection = get_connection()
-    try:
-        row = connection.execute(
-            """
-            SELECT COUNT(*) AS num_facturas,
-                   COALESCE(SUM(total_usd),0) AS total_usd,
-                   COALESCE(SUM(saldo_usd),0) AS saldo_usd
-            FROM credit_debts WHERE cliente_id=?
-            """,
-            (cliente_id,),
-        ).fetchone()
-        return dict(row) if row else {"num_facturas": 0, "total_usd": 0, "saldo_usd": 0}
-    finally:
-        connection.close()
-
-
 def get_debt_detail(deuda_id):
     """Detalle completo de una deuda: cliente, venta, productos fiados y abonos.
 
@@ -182,14 +164,6 @@ def get_next_invoice_number_with_connection(connection):
         "SELECT COALESCE(MAX(CAST(numero_factura AS INTEGER)), 0) + 1 FROM sales"
     ).fetchone()
     return int(row[0])
-
-
-def get_next_invoice_number():
-    connection = get_connection()
-    try:
-        return get_next_invoice_number_with_connection(connection)
-    finally:
-        connection.close()
 
 
 def get_sale_products():

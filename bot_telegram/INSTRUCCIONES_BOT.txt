@@ -13,7 +13,7 @@ PASO 1: CREAR EL BOT EN TELEGRAM (Solo toma 1 minuto)
 
 PASO 2: INICIAR EL BOT
 -----------------------------------------------------------------------------
-1. Haz doble clic en el archivo "iniciar_bot.bat" (o ejecuta python bot_licencias.py).
+1. Ejecuta python bot_licencias.py (no hay archivo .bat; se eliminó).
 2. Pega el Token que te dio @BotFather y presiona Enter.
 3. ¡El bot se conectará y quedará activo escuchando tus mensajes!
 

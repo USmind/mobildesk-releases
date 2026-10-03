@@ -1,20 +1,12 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobildesk_movil/services/app_state.dart';
 
-/// Copia exacta de la funcion en lib/services/app_state.dart
-const String kLlaveSemilla = 'mobildesk-sync-v1';
-
-String derivarLlave(String codigoNegocio) {
-  final base = codigoNegocio.trim().toLowerCase();
-  if (base.isEmpty) return '';
-  final hmacSha256 = Hmac(sha256, utf8.encode(kLlaveSemilla));
-  return hmacSha256.convert(utf8.encode(base)).toString();
-}
-
+/// Prueba las funciones REALES de sincronizacion (no copias locales).
+/// Si alguien cambia derivarLlave/toValidUuid en app_state.dart y rompe la
+/// compatibilidad con la PC, estos tests fallan.
 void main() {
   test('La llave del movil coincide con la del PC', () {
-    // Valor calculado por el PC (Python, mismo algoritmo HMAC-SHA256)
+    // Valor calculado por la PC (Python, mismo algoritmo HMAC-SHA256)
     expect(derivarLlave('MOBIL-6541'),
         'ca375b122d7c05d87eff1a0639ec95446861135c8493c5911e520e7cc34bded9');
   });
@@ -43,17 +35,7 @@ void main() {
 
   test('toValidUuid coincide con el MD5 del PC', () {
     // PC: md5('mobil-6541') -> UUID
-    expect(toValidUuidLocal('MOBIL-6541'),
+    expect(toValidUuid('MOBIL-6541'),
         'b8cc3682-1410-d48c-e5c6-eabf7b18645b');
   });
-}
-
-String toValidUuidLocal(String text) {
-  final trimmed = text.trim().toLowerCase();
-  final regex = RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
-  if (regex.hasMatch(trimmed)) return trimmed;
-  final d = md5.convert(utf8.encode(trimmed)).toString();
-  return '${d.substring(0, 8)}-${d.substring(8, 12)}-${d.substring(12, 16)}-'
-      '${d.substring(16, 20)}-${d.substring(20, 32)}';
 }

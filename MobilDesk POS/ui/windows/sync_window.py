@@ -1,7 +1,6 @@
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -14,7 +13,6 @@ from PySide6.QtWidgets import (
 )
 from modules.sync.sync_service import (
     set_business_code,
-    get_business_id,
     sync_now,
     get_sync_status_info,
 )

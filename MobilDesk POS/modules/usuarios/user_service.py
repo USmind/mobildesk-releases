@@ -27,19 +27,6 @@ def has_users():
     finally: connection.close()
 
 
-def ensure_bootstrap_user():
-    """Technical administrator used only until the first real account is created."""
-    connection = get_connection()
-    try:
-        user = connection.execute("SELECT * FROM users WHERE username = ?", (BOOTSTRAP_USERNAME,)).fetchone()
-        if user is not None: return user
-        password_hash = bcrypt.hashpw(b"bootstrap-disabled", bcrypt.gensalt()).decode("utf-8")
-        connection.execute("INSERT INTO users (nombre, username, password_hash, role, activo) VALUES (?, ?, ?, 'admin', 1)", ("Configuracion inicial", BOOTSTRAP_USERNAME, password_hash))
-        connection.commit()
-        return connection.execute("SELECT * FROM users WHERE username = ?", (BOOTSTRAP_USERNAME,)).fetchone()
-    finally: connection.close()
-
-
 def authenticate(username, password):
     connection = get_connection()
     try: user = connection.execute("SELECT * FROM users WHERE username = ? AND activo = 1", (username.strip(),)).fetchone()

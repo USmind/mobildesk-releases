@@ -28,24 +28,6 @@ def get_profit_percentage():
         connection.close()
 
 
-def set_profit_percentage(valor):
-    valor = float(valor)
-    if valor < 0:
-        raise ValueError("El porcentaje de ganancia no puede ser negativo.")
-    connection = get_connection()
-    try:
-        connection.execute("UPDATE pricing_settings SET porcentaje_ganancia=? WHERE id=1", (valor,))
-        current_rate = get_current_rate_value() or 0.0
-        queue_event_with_connection(
-            connection,
-            "tasa_cambio_actualizada",
-            {"tasa": current_rate, "margen": valor},
-        )
-        connection.commit()
-    finally:
-        connection.close()
-
-
 def sale_price_usd(precio_base_usd):
     return float(precio_base_usd) * (1 + get_profit_percentage() / 100)
 
@@ -89,38 +71,3 @@ def set_exchange_rate(valor, usuario_id=None):
         raise
     finally:
         connection.close()
-
-
-def get_exchange_rate_history():
-    connection = get_connection()
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            """SELECT er.id, er.valor, u.nombre AS usuario_nombre, er.fecha
-               FROM exchange_rates er
-               LEFT JOIN users u ON er.usuario_id = u.id
-               ORDER BY er.id DESC"""
-        )
-        return cursor.fetchall()
-    finally:
-        connection.close()
-
-
-def usd_to_bs(monto_usd, tasa=None):
-    monto_usd = float(monto_usd)
-    if tasa is None:
-        tasa = get_current_rate_value()
-    if tasa is None:
-        raise ValueError("No existe una tasa USD/Bs configurada.")
-    return monto_usd * float(tasa)
-
-
-def bs_to_usd(monto_bs, tasa=None):
-    monto_bs = float(monto_bs)
-    if tasa is None:
-        tasa = get_current_rate_value()
-    if tasa is None:
-        raise ValueError("No existe una tasa USD/Bs configurada.")
-    if float(tasa) <= 0:
-        raise ValueError("La tasa debe ser mayor que cero.")
-    return monto_bs / float(tasa)

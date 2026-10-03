@@ -1,7 +1,6 @@
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,

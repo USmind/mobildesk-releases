@@ -12,19 +12,9 @@ const String kSupabaseKey = String.fromEnvironment(
   defaultValue: 'sb_publishable_6a_o_Jv_XhqZE9TP7mO2EA_gOeak-mL',
 );
 
-const String kGitHubRepo = String.fromEnvironment(
-  'GITHUB_REPO',
-  defaultValue: 'USmind/mobildesk-releases',
-);
-
 const String kVersionJsonUrl = String.fromEnvironment(
   'VERSION_JSON_URL',
   defaultValue: 'https://raw.githubusercontent.com/USmind/mobildesk-releases/main/version.json',
-);
-
-const String kLicenseServerUrl = String.fromEnvironment(
-  'LICENSE_SERVER_URL',
-  defaultValue: 'https://mobildesk-keybot.onrender.com',
 );
 
 /// Verifica si estamos en modo debug (para certificados auto-firmados)

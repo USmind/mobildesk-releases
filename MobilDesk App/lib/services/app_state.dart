@@ -48,12 +48,8 @@ String derivarLlave(String codigoNegocio) {
 }
 
 class AppState extends ChangeNotifier {
-  String? token;
-  String? refreshToken;
   String? businessId;
   String? email;
-  /// Usuarios del negocio (solo identidad y rol; nunca contraseñas ni hashes).
-  List<Map<String, dynamic>> appUsers = [];
 
   String businessName = 'MobilDesk';
   double exchangeRate = 763.0;
@@ -67,13 +63,10 @@ class AppState extends ChangeNotifier {
 
   bool isSyncing = false;
   String syncStatus = 'Iniciando...';
-  String? lastSyncTime;
-  String? lastErrorMessage;
 
   // ---- Licencia sincronizada con el PC ----
   // estados: desconocida | demo | activo | vitalicio | expirado
   String licEstado = 'desconocida';
-  String licPlan = '';
   String licFechaExpiracion = '';
   DateTime? firstInstall;
 
@@ -149,23 +142,13 @@ class AppState extends ChangeNotifier {
     load();
   }
 
-  @override
-  void dispose() {
-    _autoSyncTimer?.cancel();
-    _bcvAutoTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    token = prefs.getString('token');
-    refreshToken = prefs.getString('refreshToken');
     businessId = prefs.getString('businessId');
     email = prefs.getString('email');
     businessName = prefs.getString('businessName') ?? 'MobilDesk POS';
     exchangeRate = prefs.getDouble('exchangeRate') ?? 763.0;
     profitMargin = prefs.getDouble('profitMargin') ?? 0.0;
-    lastSyncTime = prefs.getString('lastSyncTime');
 
     final rawState = prefs.getString(kPrefState);
     if (rawState != null) {
@@ -193,7 +176,6 @@ class AppState extends ChangeNotifier {
           seenEvents = Set<String>.from(data['seen']);
         }
         if (data['licEstado'] is String) licEstado = data['licEstado'];
-        if (data['licPlan'] is String) licPlan = data['licPlan'];
         if (data['licFechaExpiracion'] is String) licFechaExpiracion = data['licFechaExpiracion'];
       } catch (e) {
         debugPrint('Error loading state: $e');
@@ -229,7 +211,6 @@ class AppState extends ChangeNotifier {
 
     notifyListeners();
     if (isAuthenticated) {
-      await fetchAppUsers();
       sync();
     } else {
       syncStatus = 'Ingresa el Código de tu Negocio';
@@ -239,11 +220,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
-    if (token != null) await prefs.setString('token', token!);
-    if (refreshToken != null) await prefs.setString('refreshToken', refreshToken!);
     if (businessId != null) await prefs.setString('businessId', businessId!);
     if (email != null) await prefs.setString('email', email!);
-    if (lastSyncTime != null) await prefs.setString('lastSyncTime', lastSyncTime!);
     await prefs.setString('businessName', businessName);
     await prefs.setDouble('exchangeRate', exchangeRate);
     await prefs.setDouble('profitMargin', profitMargin);
@@ -255,7 +233,6 @@ class AppState extends ChangeNotifier {
       'outbox': outbox,
       'seen': seenEvents.toList(),
       'licEstado': licEstado,
-      'licPlan': licPlan,
       'licFechaExpiracion': licFechaExpiracion,
     };
     await prefs.setString(kPrefState, jsonEncode(rawData));
@@ -534,7 +511,6 @@ class AppState extends ChangeNotifier {
       final nuevoEstado = datos['estado']?.toString() ?? '';
       final nuevaFecha = datos['fecha_expiracion']?.toString() ?? '';
       if (nuevoEstado.isNotEmpty) licEstado = nuevoEstado;
-      licPlan = datos['plan']?.toString() ?? '';
       licFechaExpiracion = nuevaFecha;
     } else if (tipo == 'abono_deuda') {
       final fac = datos['numero_factura']?.toString() ?? '';
@@ -582,65 +558,12 @@ class AppState extends ChangeNotifier {
 
     businessId = code;
     email = 'código: $code';
-    token = null;
-    refreshToken = null;
 
     products.clear();
     movements.clear();
     sales.clear();
     outbox.clear();
     seenEvents.clear();
-    lastErrorMessage = null;
-    appUsers = [];
-
-    await save();
-    notifyListeners();
-    await sync();
-    await fetchAppUsers();
-  }
-
-  Future<void> login(String inputEmail, String password) async {
-    inputEmail = inputEmail.trim().toLowerCase();
-    if (!inputEmail.contains('@') || password.length < 8) {
-      throw 'Escribe un correo válido y una contraseña de al menos 8 caracteres.';
-    }
-
-    Map<String, dynamic> sessionData;
-
-    try {
-      sessionData = await _rawApi(
-        '/auth/v1/token?grant_type=password',
-        'POST',
-        {'email': inputEmail, 'password': password},
-        null,
-      );
-    } catch (loginErr) {
-      // NO auto-crear usuario (signup) en login fallido.
-      // El usuario debe usar "Enlazar con Código de Negocio" para vincular un negocio existente.
-      throw 'Correo o contraseña incorrectos. Si es tu primer acceso, usa "Enlazar con Código de Negocio".';
-    }
-
-    token = sessionData['access_token']?.toString();
-    refreshToken = sessionData['refresh_token']?.toString();
-    email = inputEmail;
-
-    try {
-      final userData = await _rawApi('/auth/v1/user', 'GET', null, token);
-      final metadata = userData['user_metadata'] as Map<String, dynamic>?;
-      businessId = metadata?['negocio_id']?.toString();
-    } catch (_) {}
-
-    if (businessId == null || businessId!.isEmpty) {
-      final user = sessionData['user'] as Map<String, dynamic>?;
-      final metadata = user?['user_metadata'] as Map<String, dynamic>?;
-      businessId = metadata?['negocio_id']?.toString() ?? 'mobildesk-default';
-    }
-
-    products.clear();
-    movements.clear();
-    sales.clear();
-    seenEvents.clear();
-    lastErrorMessage = null;
 
     await save();
     notifyListeners();
@@ -649,21 +572,15 @@ class AppState extends ChangeNotifier {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('refreshToken');
     await prefs.remove('businessId');
     await prefs.remove(kPrefState);
-    token = null;
-    refreshToken = null;
     businessId = null;
-    appUsers = [];
     products.clear();
     movements.clear();
     sales.clear();
     outbox.clear();
     seenEvents.clear();
     syncStatus = 'Sesión cerrada';
-    lastErrorMessage = null;
     notifyListeners();
   }
 
@@ -679,21 +596,15 @@ class AppState extends ChangeNotifier {
     sales.clear();
     outbox.clear();
     seenEvents.clear();
-    appUsers = [];
-    lastErrorMessage = null;
 
     final prefs = await SharedPreferences.getInstance();
     // El estado guardado y la clave del código permitirían reconstruir datos
     // que ya no existen; se borran ambas cosas.
     await prefs.remove(kPrefState);
-    await prefs.remove('token');
-    await prefs.remove('refreshToken');
     await prefs.remove('businessId');
     await prefs.remove('email');
     await prefs.remove('businessName');
 
-    token = null;
-    refreshToken = null;
     businessId = null;
     email = null;
     businessName = 'MobilDesk POS';
@@ -776,13 +687,10 @@ class AppState extends ChangeNotifier {
 
       final now = DateTime.now();
       final timeFormatted = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-      lastSyncTime = timeFormatted;
       syncStatus = 'Sincronizado ($timeFormatted) · ${products.length} productos';
-      lastErrorMessage = null;
       await save();
     } catch (e) {
       final friendlyError = _translateError(e.toString());
-      lastErrorMessage = friendlyError;
       syncStatus = friendlyError;
       debugPrint('Sync error: $e');
     } finally {
@@ -851,18 +759,10 @@ class AppState extends ChangeNotifier {
 
   Future<dynamic> _authenticatedApi(String path, String method, [Object? data]) async {
     // La llave se deriva del codigo de negocio y la valida Postgres para aislar
-    // los datos de cada cliente en la nube.
+    // los datos de cada cliente en la nube. Ya no hay sesion con token: el
+    // login es por codigo de negocio.
     final llave = businessId == null ? '' : derivarLlave(businessId!);
-    try {
-      return await _rawApi(path, method, data, token, llave);
-    } catch (e) {
-      if (token != null) {
-        try {
-          return await _rawApi(path, method, data, null, llave);
-        } catch (_) {}
-      }
-      rethrow;
-    }
+    return _rawApi(path, method, data, null, llave);
   }
 
   static Future<dynamic> _rawApi(String path, String method, [Object? data, String? authToken, String? llave]) async {
@@ -1018,44 +918,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // ====== Usuario de la App (solo lectura desde PC; sin hashes en la nube) ======
-  // El PC sincroniza identidad y rol. La contrasena se valida contra el PC.
-  Future<void> fetchAppUsers() async {
-    if (businessId == null) return;
-    try {
-      final uuid = toValidUuid(businessId!);
-      final url = "$kSupabaseUrl/rest/v1/mobildesk_eventos?negocio_id=eq.$uuid&tipo=eq.usuario_sincronizado&select=datos&order=creado_en.desc&limit=100";
-      // La llave es obligatoria: sin ella el candado de Postgres rechaza la consulta.
-      final llave = derivarLlave(businessId!);
-      final text = await fetchRaw(
-        url,
-        headers: {
-          "apikey": kSupabaseKey,
-          "Authorization": "Bearer $kSupabaseKey",
-          "x-mobildesk-key": llave,
-        },
-        timeout: const Duration(seconds: 10),
-      );
-      final List list = jsonDecode(text) as List;
-      final Map<String, Map<String, dynamic>> byUser = {};
-      for (final row in list) {
-        final datos = row["datos"];
-        if (datos is Map) {
-          final u = (datos["username"] ?? "").toString().toLowerCase().trim();
-          if (u.isEmpty) continue;
-          byUser.putIfAbsent(u, () => Map<String, dynamic>.from(datos));
-        }
-      }
-      // Solo identidad y rol: nunca el hash.
-      appUsers = byUser.values.where((u) => (u["activo"] ?? 1) == 1).map((u) => {
-        "username": u["username"],
-        "nombre": u["nombre"] ?? u["username"],
-        "role": u["role"] ?? "vendedor",
-      }).toList();
-      appUsers.sort((a, b) => a["nombre"].toString().compareTo(b["nombre"].toString()));
-      notifyListeners();
-    } catch (e) {
-      debugPrint("fetchAppUsers error: $e");
-    }
-  }
+  // NOTA: aqui habia fetchAppUsers(), que descargaba la lista de usuarios del
+  // PC. Se elimino porque nada la leia: el login es por codigo de negocio y la
+  // sesion por usuario quedo fuera. Los eventos 'usuario_sincronizado' que aun
+  // lleguen se ignoran sin romper la sincronizacion.
 }

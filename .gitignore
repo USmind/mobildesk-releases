@@ -21,6 +21,8 @@ bot_telegram/config.json
 # Base de datos
 *.db
 *.sqlite
+*.bak
+respaldos/
 
 # IDEs
 .vscode/

@@ -9,29 +9,7 @@ Ganchos:
   Botones (propiedad variant): default primario, success, danger,
           ghost, soft
   Contenedores: QFrame#card / #cardFlat / #kpi / #banner / #bannerDark
-
-Paleta:
-  APP_BG  #F7F8FA   CARD #FFFFFF   INK #131722   MUTED #6B7280
-  BORDER  #E4E7EC   BRAND #2563EB  SUCCESS #16A34A  DANGER #DC2626
 """
-
-APP_BG = "#F7F8FA"
-CARD = "#FFFFFF"
-INK = "#131722"
-MUTED = "#6B7280"
-SUBTLE = "#9CA3AF"
-BORDER = "#E4E7EC"
-BORDER_DARK = "#C9CED6"
-BRAND = "#2563EB"
-BRAND_HOVER = "#1D4ED8"
-BRAND_SOFT = "#EFF4FF"
-SUCCESS = "#16A34A"
-SUCCESS_HOVER = "#15803D"
-SUCCESS_SOFT = "#EAF9F0"
-DANGER = "#DC2626"
-DANGER_HOVER = "#B91C1C"
-DANGER_SOFT = "#FDECEC"
-TRACK = "#EDF0F4"
 
 import os as _os
 

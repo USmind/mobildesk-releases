@@ -33,15 +33,6 @@ def get_products():
         connection.close()
 
 
-def get_next_product_code():
-    connection = get_connection()
-    try:
-        row = connection.execute("""SELECT codigo FROM products WHERE codigo GLOB 'P[0-9]*'
-            ORDER BY CAST(SUBSTR(codigo, 2) AS INTEGER) DESC LIMIT 1""").fetchone()
-        return f"P{(int(row['codigo'][1:]) + 1) if row else 1:06d}"
-    finally: connection.close()
-
-
 def get_categories():
     connection = get_connection()
     try: return connection.execute("SELECT id, nombre FROM categories WHERE activo=1 ORDER BY nombre").fetchall()
@@ -74,38 +65,6 @@ def create_supplier(nombre):
         cursor = connection.execute("INSERT INTO suppliers(nombre, activo) VALUES(?,1)", (nombre,))
         connection.commit()
         return cursor.lastrowid
-    finally: connection.close()
-
-
-def get_or_create_category(nombre):
-    nombre = (nombre or "").strip() if isinstance(nombre, str) else ""
-    if not nombre:
-        return None
-    connection = get_connection()
-    try:
-        row = connection.execute("SELECT id FROM categories WHERE nombre=?", (nombre,)).fetchone()
-        if row:
-            return row["id"]
-        connection.execute("INSERT OR IGNORE INTO categories(nombre, activo) VALUES(?,1)", (nombre,))
-        connection.commit()
-        row = connection.execute("SELECT id FROM categories WHERE nombre=?", (nombre,)).fetchone()
-        return row["id"] if row else None
-    finally: connection.close()
-
-
-def get_or_create_supplier(nombre):
-    nombre = (nombre or "").strip() if isinstance(nombre, str) else ""
-    if not nombre:
-        return None
-    connection = get_connection()
-    try:
-        row = connection.execute("SELECT id FROM suppliers WHERE nombre=?", (nombre,)).fetchone()
-        if row:
-            return row["id"]
-        connection.execute("INSERT OR IGNORE INTO suppliers(nombre, activo) VALUES(?,1)", (nombre,))
-        connection.commit()
-        row = connection.execute("SELECT id FROM suppliers WHERE nombre=?", (nombre,)).fetchone()
-        return row["id"] if row else None
     finally: connection.close()
 
 

@@ -181,11 +181,11 @@ genera uno nuevo. **Anotalo.**
 
 ## 7.2 En el celular
 
-Instala la app 1.2.17:
+Instala la app 1.2.18:
 
     https://github.com/USmind/mobildesk-releases/releases/tag/v2.0.38
 
-Baja `MobilDesk-v1.2.17.apk`.
+Baja `MobilDesk-v1.2.18.apk`.
 
 Abre la app, escribe el **mismo codigo** que dice en la computadora y
 dale **Conectar**.

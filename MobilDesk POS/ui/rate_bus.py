@@ -64,39 +64,3 @@ def suscribir(callback, parent=None):
         return True
     except Exception:
         return False
-
-
-def refrescar_widget(widget):
-    """Busca en un widget el metodo de recarga que implemente y lo llama.
-
-    Cubre los distintos nombres que usan las ventanas (cargar, cargar_todo,
-    cargar_deudas, actualizar_vista, etc.) para no tener que registrar cada
-    metodo a mano.
-    """
-    if widget is None:
-        return False
-    for metodo in ("refrescar_por_tasa", "cargar_todo", "cargar_deudas",
-                   "cargar", "actualizar_vista", "cargar_datos", "cargar_tasa",
-                   "refrescar"):
-        fn = getattr(widget, metodo, None)
-        if callable(fn):
-            try:
-                fn()
-                return True
-            except Exception:
-                continue
-    return False
-
-
-class RefrescaConTasa:
-    """
-    Mixin para ventanas que muestran cifras en Bs.
-
-    Da a cada ventana un metodo 'refrescar_por_tasa' con un nombre unico, para
-    que el bus sepa a que llamar sin adivinar. Las ventanas que ya tenian
-    'cargar'/'actualizar_vista' siguen funcionando igual: el bus prueba varias.
-    """
-
-    def refrescar_por_tasa(self):
-        """Recarga la ventana. Las subclases pueden sobrescribirlo."""
-        return refrescar_widget(self)

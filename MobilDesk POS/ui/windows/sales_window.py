@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QHeaderView,
     QCompleter,
-    QInputDialog,
     QSizePolicy,
     QFrame
 )
@@ -25,9 +24,6 @@ from modules.ventas.sales_service import (
     get_product_stock,
     create_sale,
     get_sales_history,
-    get_credit_debts,
-    register_debt_payment,
-    get_debt_payments
 )
 
 from modules.configuracion.exchange_rate_service import (

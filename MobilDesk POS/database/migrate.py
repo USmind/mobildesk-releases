@@ -8,8 +8,6 @@ from app_paths import resource_path
 # CONFIGURACIÓN
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 DB_PATH = DATABASE
 
 MIGRATIONS_DIR = Path(resource_path("database/migrations"))

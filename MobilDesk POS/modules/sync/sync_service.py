@@ -243,15 +243,6 @@ def queue_event_with_connection(connection, tipo, datos):
     )
 
 
-def queue_event(tipo, datos):
-    connection = get_connection()
-    try:
-        queue_event_with_connection(connection, tipo, datos)
-        connection.commit()
-    finally:
-        connection.close()
-
-
 def _queue_initial_snapshot(connection):
     """Coloca absolutamente todos los datos existentes en la cola para subirlos a la nube."""
     if _setting(connection, "snapshot_version") == "6":

@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 from database.connection import get_connection
 from modules.productos.product_service import (
     get_products,
-    get_next_product_code,
     create_product,
     update_product,
     delete_product,
@@ -43,24 +42,12 @@ from modules.inventario.inventory_service import (
 from modules.configuracion.exchange_rate_service import (
     get_current_rate_value,
     get_profit_percentage,
-    sale_price_usd,
 )
 
 UNIDADES = ["Unidad", "Kg", "g", "L", "ml", "Paquete", "Caja", "Bulto", "Docena", "Metro", "Saco"]
 
 NUEVA_CATEGORIA = "__nueva_categoria__"
 NUEVO_PROVEEDOR = "__nuevo_proveedor__"
-
-
-def category_box(selected=None):
-    box = QComboBox()
-    box.setEditable(True)
-    box.addItem("", None)
-    for item in get_categories():
-        box.addItem(item["nombre"], item["id"])
-    if selected:
-        box.setCurrentText(selected)
-    return box
 
 
 # ============================================================

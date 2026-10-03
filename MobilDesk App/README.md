@@ -1,6 +1,6 @@
-# kiosko_movil
+# mobildesk_movil
 
-A new Flutter project.
+App Android de MobilDesk POS: punto de venta y gestión móvil.
 
 ## Getting Started
 

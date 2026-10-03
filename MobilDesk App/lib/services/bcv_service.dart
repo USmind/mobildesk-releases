@@ -12,9 +12,8 @@ const _bcvApiUrl = 'https://bcv.today/api/v1/rate.json';
 class BcvRateResult {
   final double rate;
   final String date;
-  final String updatedAt;
 
-  const BcvRateResult({required this.rate, required this.date, required this.updatedAt});
+  const BcvRateResult({required this.rate, required this.date});
 }
 
 /// Obtiene la tasa oficial USD/Bs del BCV.
@@ -33,7 +32,6 @@ Future<BcvRateResult?> fetchBcvRate() async {
     return BcvRateResult(
       rate: rate,
       date: (data['date'] ?? '').toString(),
-      updatedAt: (data['updated_at'] ?? '').toString(),
     );
   } catch (_) {
     return null;

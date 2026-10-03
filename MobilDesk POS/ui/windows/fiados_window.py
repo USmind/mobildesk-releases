@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QFrame,
     QDoubleSpinBox,
-    QScrollArea,
 )
 from modules.ventas.sales_service import (
     get_credit_debts,
@@ -611,12 +610,6 @@ class FiadosWindow(QDialog):
         vbox.addWidget(lbl_v)
         vbox.val_label = lbl_v
         return vbox
-
-    def _crear_separador(self):
-        sep = QFrame()
-        sep.setFrameShape(QFrame.VLine)
-        sep.setFrameShadow(QFrame.Sunken)
-        return sep
 
     def _set_filtro(self, filtro):
         self.filtro_estado = filtro

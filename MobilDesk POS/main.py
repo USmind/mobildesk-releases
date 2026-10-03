@@ -6,7 +6,6 @@ from app_paths import resource_path
 
 from database.migrate import run_migrations
 from modules.usuarios.user_service import has_users
-from modules.usuarios.session import get_user
 from ui.windows.login_window import LoginWindow
 from ui.windows.dashboard_window import DashboardWindow
 from ui.windows.initial_setup_window import InitialSetupWindow

@@ -48,10 +48,3 @@ def set_user(user):
 def get_user():
 
     return _current_user
-
-
-def clear_user():
-
-    global _current_user
-
-    _current_user = None

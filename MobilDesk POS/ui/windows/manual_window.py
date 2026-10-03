@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QFrame,
-    QLineEdit,
     QTabWidget
 )
 from PySide6.QtCore import Qt

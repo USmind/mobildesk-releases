@@ -164,9 +164,6 @@ class PagoMixtoDetalle {
         vueltoBs: double.tryParse(map['vuelto_bs']?.toString() ?? '0') ?? 0,
         vueltoUsd: double.tryParse(map['vuelto_usd']?.toString() ?? '0') ?? 0,
       );
-
-  bool get tieneFiado => fiadoBs > 0;
-  bool get tieneDivisas => divisasUsd > 0;
 }
 
 class Sale {

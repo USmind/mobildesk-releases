@@ -22,10 +22,9 @@ from PySide6.QtWidgets import (
 )
 from modules.usuarios.session import get_user
 from modules.usuarios.user_service import get_users, create_user, user_exists, update_user, delete_user
-from modules.inventario.inventory_service import get_low_stock_products
 from modules.ventas.sales_service import get_sales_summary
 from modules.configuracion.business_service import get_business_settings
-from ui.windows.inventory_window import InventoryWindow, UnifiedInventoryWindow
+from ui.windows.inventory_window import UnifiedInventoryWindow
 from ui.windows.exchange_rate._window import ExchangeRateWindow
 from ui.windows.sales_window import SalesWindow
 from ui.windows.sync_window import SyncWindow
