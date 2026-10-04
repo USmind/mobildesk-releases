@@ -17,6 +17,10 @@ dist/
 .env
 .env.*
 bot_telegram/config.json
+# Semilla del candado de sincronizacion: sale SOLO en los binarios compilados.
+# Jamas debe llegar a git; sin este archivo los builds de release fallan.
+semilla.key
+MobilDesk POS/modules/sync/_semilla.py
 
 # Base de datos
 *.db

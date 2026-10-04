@@ -30,10 +30,17 @@ String toValidUuid(String text) {
   return '${digest.substring(0, 8)}-${digest.substring(8, 12)}-${digest.substring(12, 16)}-${digest.substring(16, 20)}-${digest.substring(20, 32)}';
 }
 
-/// Semilla para derivar la llave del negocio. Debe ser IDENTICA a la del PC
-/// (modules/sync/sync_service.py), porque ambos calculan la llave a partir del
-/// mismo codigo de negocio sin tener que descargarla de la nube.
-const String kLlaveSemilla = 'mobildesk-sync-v1';
+/// Semilla para derivar la llave del negocio. Debe ser IDENTICA a la del PC.
+///
+/// La semilla real NO esta en git: se inyecta al compilar con
+/// --dart-define=MOBILDESK_SEED=... desde el archivo local semilla.key.
+/// Sin ese valor (desarrollo), se usa una semilla de prueba que solo sirve
+/// en local. Los builds de release fallan si falta? No: el script de release
+/// verifica que semilla.key exista antes de compilar.
+const String kLlaveSemilla = String.fromEnvironment(
+  'MOBILDESK_SEED',
+  defaultValue: 'SEMILLA-SOLO-DESARROLLO-NO-USAR-EN-PRODUCCION',
+);
 
 /// Calcula la llave del negocio a partir de su codigo.
 ///

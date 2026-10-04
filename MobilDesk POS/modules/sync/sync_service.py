@@ -26,12 +26,15 @@ from database.connection import get_connection
 SUPABASE_URL = "https://atxeuhqhariymdqsbmpd.supabase.co"
 SUPABASE_KEY = "sb_publishable_6a_o_Jv_XhqZE9TP7mO2EA_gOeak-mL"
 
-# Semilla del codigo de negocio para derivar la llave de cada negocio.
-# No es un secreto: es la misma base en el PC y en el movil, de modo que ambos
-# calculan exactamente la misma llave a partir del codigo que escribio el
-# usuario. Lo que protege no es esta semilla, sino que la llave via sola y en
-# la base solo se guarda su hash.
-_LLAVE_SEMILLA = "mobildesk-sync-v1"
+# Semilla para derivar la llave de cada negocio.
+#
+# La semilla real NO esta en git: se genera en build al compilar el .exe desde
+# el archivo local semilla.key (ver .gitignore). Sin ese archivo, aqui se usa
+# una semilla de desarrollo que solo sirve para pruebas locales.
+try:
+    from modules.sync._semilla import SEMILLA as _LLAVE_SEMILLA
+except ImportError:
+    _LLAVE_SEMILLA = "SEMILLA-SOLO-DESARROLLO-NO-USAR-EN-PRODUCCION"
 
 
 def derivar_llave(codigo_negocio):

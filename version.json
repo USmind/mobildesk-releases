@@ -1,10 +1,10 @@
 {
-  "version": "2.0.38",
-  "pc_version": "2.0.38",
-  "android_version": "1.2.18",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/Instalar-MobilDesk-v2.0.38.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/Instalar-MobilDesk-v2.0.38.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.38/MobilDesk-v1.2.18.apk",
-  "pc_sha256": "4d0ddca060978cf6e04a366148f0f2e56f321897b77d2823f44cbb51b3ebd1f1",
-  "changelog": "Mensajes claros cuando la nube aun no esta lista: en vez de 'error interno' ahora dice que archivo SQL ejecutar y aclara que el programa sigue funcionando. El SQL del candado corregido. Verificado que sin internet se puede vender y cobrar fiados sin perder datos."
+  "version": "2.0.39",
+  "pc_version": "2.0.39",
+  "android_version": "1.2.19",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/Instalar-MobilDesk-v2.0.39.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/Instalar-MobilDesk-v2.0.39.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/MobilDesk-v1.2.19.apk",
+  "pc_sha256": "9027acfa54a0b3fefb6e6a4d0a1222afaa8018c29742f64d3b5049425dbbe94d",
+  "changelog": "Candado real: la semilla sale de git y se inyecta al compilar, la base compara hashes y nadie puede leer las llaves. Requiere ejecutar sql/03_rotar_llave.sql despues de instalar."
 }
