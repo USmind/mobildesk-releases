@@ -176,6 +176,8 @@ class BusinessSettingsWindow(QDialog):
             f"{filas}\n\n"
             "También se borra la licencia: el programa quedará bloqueado hasta que\n"
             "vuelvas a activarla.\n\n"
+            "El móvil enlazado también se vacía. Las ventas que tenga pendientes\n"
+            "de sincronizar se perderán: sincroniza primero si quieres conservarlas.\n\n"
             "Se guardará un respaldo antes de borrar."
         )
         btn_si = aviso.addButton("Sí, quiero borrarlo todo", QMessageBox.DestructiveRole)

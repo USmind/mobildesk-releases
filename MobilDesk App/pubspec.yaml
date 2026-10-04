@@ -1,7 +1,7 @@
 name: mobildesk_movil
 description: "Punto de Venta y Gestión Móvil MobilDesk."
 publish_to: 'none'
-version: 1.2.19+28
+version: 1.2.20+29
 
 environment:
   sdk: ^3.13.0

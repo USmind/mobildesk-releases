@@ -1,5 +1,5 @@
 #define MyAppName "MobilDesk POS"
-#define MyAppVersion "2.0.39"
+#define MyAppVersion "2.0.40"
 #define MyAppPublisher "MobilDesk POS Systems"
 #define MyAppExeName "MobilDesk.exe"
 

@@ -594,30 +594,23 @@ class AppState extends ChangeNotifier {
   /// Vacía por completo los datos guardados en el móvil.
   ///
   /// Se llama al recibir el evento 'negocio_datos_borrados', que envía la
-  /// computadora cuando el administrador borra todos los datos. Se elimina
-  /// también el código de negocio y la sesión, para que la app vuelva al
-  /// estado de instalación nueva: nada de lo que había antes debe quedar.
+  /// computadora cuando el administrador borra todos los datos.
+  /// Vacía los datos pero MANTIENE el enlace y lo ya visto:
+  /// - businessId se conserva: si se borrara, la app volvería al login y,
+  ///   como el evento sigue en la nube, entraría en un bucle al re-enlazar.
+  /// - seenEvents se conserva: si se vaciara, la próxima sincronización
+  ///   volvería a descargar y aplicar este mismo borrado eternamente.
   Future<void> _borrarTodoLocalmente() async {
     products.clear();
     movements.clear();
     sales.clear();
     outbox.clear();
-    seenEvents.clear();
 
-    final prefs = await SharedPreferences.getInstance();
-    // El estado guardado y la clave del código permitirían reconstruir datos
-    // que ya no existen; se borran ambas cosas.
-    await prefs.remove(kPrefState);
-    await prefs.remove('businessId');
-    await prefs.remove('email');
-    await prefs.remove('businessName');
-
-    businessId = null;
-    email = null;
     businessName = 'MobilDesk POS';
     exchangeRate = 763.0;
     profitMargin = 0.0;
     syncStatus = 'Los datos del negocio fueron borrados desde la computadora';
+    await save();
     notifyListeners();
   }
 

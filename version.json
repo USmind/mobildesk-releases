@@ -1,10 +1,10 @@
 {
-  "version": "2.0.39",
-  "pc_version": "2.0.39",
-  "android_version": "1.2.19",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/Instalar-MobilDesk-v2.0.39.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/Instalar-MobilDesk-v2.0.39.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.39/MobilDesk-v1.2.19.apk",
-  "pc_sha256": "9027acfa54a0b3fefb6e6a4d0a1222afaa8018c29742f64d3b5049425dbbe94d",
-  "changelog": "Candado real: la semilla sale de git y se inyecta al compilar, la base compara hashes y nadie puede leer las llaves. Requiere ejecutar sql/03_rotar_llave.sql despues de instalar."
+  "version": "2.0.40",
+  "pc_version": "2.0.40",
+  "android_version": "1.2.20",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.40/Instalar-MobilDesk-v2.0.40.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.40/Instalar-MobilDesk-v2.0.40.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.40/MobilDesk-v1.2.20.apk",
+  "pc_sha256": "5e5b85c9b6ee91a8d17b8613be8d44c0bb4558566f7ee760b08f0ae99e4589f4",
+  "changelog": "Corrige el bucle al enlazar: un evento viejo de borrado en la nube hacia que la app se borrara y volviera al login. Ahora el movil conserva el enlace y no reprocesa el borrado. El dialogo de borrado en PC avisa que las ventas sin sincronizar del movil se perderan."
 }
