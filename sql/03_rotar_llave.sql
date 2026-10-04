@@ -5,15 +5,13 @@
 --  DESPUES de instalar los programas nuevos (PC 2.0.39+ / App 1.2.19+).
 --
 --  Que hace:
---   1. Activa pgcrypto para comparar hashes dentro de Postgres.
---   2. La funcion de validacion pasa a SECURITY DEFINER: lee las llaves
---      aunque nadie mas pueda, y compara sha256, no la llave directa.
---   3. Quita TODO permiso sobre mobildesk_llaves: ni lectura. La llave
+--   1. La funcion de validacion pasa a SECURITY DEFINER: lee las llaves
+--      aunque nadie mas pueda, y compara hashes, no la llave directa.
+--      Usa md5() que viene de fabrica en Postgres (sin extensiones).
+--   2. Quita TODO permiso sobre mobildesk_llaves: ni lectura. La llave
 --      deja de estar expuesta aunque alguien tenga la direccion de la base.
---   4. Rota la llave del negocio a la nueva semilla (fuera de git).
+--   3. Rota la llave del negocio a la nueva semilla (fuera de git).
 -- ============================================================================
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ---------------------------------------------------------------------------
 -- 1) Funcion con privilegios propios + comparacion por hash
@@ -29,16 +27,10 @@ AS $fn$
         SELECT 1
         FROM public.mobildesk_llaves k
         WHERE k.negocio_id = p_negocio
-          AND k.llave_hash = encode(
-                digest(
-                  coalesce(
-                    current_setting('request.headers', true)::json->>'x-mobildesk-key',
-                    ''
-                  ),
-                  'sha256'
-                ),
-                'hex'
-              )
+          AND k.llave_hash = md5(coalesce(
+                current_setting('request.headers', true)::json->>'x-mobildesk-key',
+                ''
+              ))
     );
 $fn$;
 
@@ -54,12 +46,12 @@ GRANT SELECT, INSERT ON public.mobildesk_eventos TO anon, authenticated;
 -- ---------------------------------------------------------------------------
 -- 3) Rotar la llave del negocio a la semilla nueva (fuera de git)
 --    negocio: MOBIL-6541 -> b8cc3682-1410-d48c-e5c6-eabf7b18645b
---    valor: sha256 de la llave derivada con la semilla real
+--    valor: md5 de la llave derivada con la semilla real
 -- ---------------------------------------------------------------------------
 INSERT INTO public.mobildesk_llaves (negocio_id, llave_hash)
 VALUES (
     'b8cc3682-1410-d48c-e5c6-eabf7b18645b',
-    '3dfd61e339e771e63304612335279178199b9cb14999294d7ce3f0f2a5680f12'
+    '0c0abf278289fdd02e7cc29d7e6bd7fb'
 )
 ON CONFLICT (negocio_id) DO UPDATE SET llave_hash = EXCLUDED.llave_hash;
 
