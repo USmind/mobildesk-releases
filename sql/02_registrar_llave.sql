@@ -8,7 +8,7 @@
 --
 --  Lo que va en cada columna:
 --    negocio_id : UUID derivado del codigo (MD5 en minusculas, formato UUID)
---    llave_hash : sha256 HEX de la llave HMAC derivada con la semilla real
+--    llave_hash : md5 HEX de la llave HMAC derivada con la semilla real
 -- ============================================================================
 
 -- EJEMPLO (no ejecutar tal cual: son valores de muestra, no reales):
