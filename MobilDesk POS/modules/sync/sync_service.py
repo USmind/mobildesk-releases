@@ -17,8 +17,9 @@ import uuid
 import hashlib
 import hmac
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from database.connection import get_connection
@@ -189,6 +190,9 @@ def set_business_code(custom_code):
         _save_setting(connection, "email", f"codigo:{custom_code}")
         _save_setting(connection, "dispositivo_id", _setting(connection, "dispositivo_id", f"pc-{str(uuid.uuid4())[:8]}"))
         connection.execute("DELETE FROM sync_settings WHERE clave='snapshot_version'")
+        # Otro negocio = otro historial: sin reset, el watermark viejo filtraria
+        # eventos del negocio nuevo y el enlace quedaria vacio.
+        connection.execute("DELETE FROM sync_settings WHERE clave='ultimo_evento_visto'")
         _queue_initial_snapshot(connection)
         connection.commit()
     finally:
@@ -648,6 +652,41 @@ def _apply_remote_event(connection, event):
     return True
 
 
+# --- Sincronización incremental y limpieza -------------------------------------
+# Antes cada sincronización descargaba TODO el historial del negocio. Con un
+# negocio eso no se nota; con decenas, el tráfico se multiplica y el plan
+# gratis no alcanza. Ahora se pide solo lo nuevo desde la última vez:
+#
+# - watermark: ultimo 'creado_en' visto, guardado en sync_settings.
+# - overlap de 60 min hacia atrás: cubre relojes desfasados entre equipos y
+#   eventos con igual marca temporal. Los repetidos se descartan solos porque
+#   _apply_remote_event ignora los ya registrados en sync_applied_events.
+# - Sin watermark (primera vez o cambio de negocio): descarga completa, igual
+#   que antes, y al terminar se guarda el watermark.
+# - TTL 60 días: la PC borra de la nube los eventos transaccionales viejos
+#   (ventas, movimientos, abonos, tasas). El catálogo (productos, config,
+#   usuarios, licencias) NO se borra nunca: un equipo nuevo que se enlace
+#   necesita el catálogo completo para funcionar.
+OVERLAP_SEGUNDOS = 3600
+TTL_DIAS = 60
+TIPOS_GC = ("venta_registrada", "movimiento_inventario", "abono_deuda",
+            "tasa_cambio_actualizada")
+
+
+def _parse_hora(iso):
+    """Convierte un ISO-8601 a datetime con zona. None si no se puede."""
+    if not iso:
+        return None
+    try:
+        texto = str(iso).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(texto)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
 def sync_now():
     """Envía cambios pendientes y recibe los del móvil."""
     connection = get_connection()
@@ -693,21 +732,58 @@ def sync_now():
                 raise
 
         url = SUPABASE_URL + "/rest/v1/mobildesk_eventos?select=id,tipo,datos,creado_en&negocio_id=eq." + valid_uuid + "&order=creado_en.asc"
+        # Incremental: pedir solo lo nuevo desde el watermark menos el overlap.
+        # Sin watermark es la primera vez: descarga completa como siempre.
+        watermark = _setting(connection, "ultimo_evento_visto")
+        wm_hora = _parse_hora(watermark)
+        if wm_hora is not None:
+            desde = (wm_hora - timedelta(seconds=OVERLAP_SEGUNDOS)).isoformat()
+            url += "&creado_en=gte." + quote(desde, safe="")
         remote_events = []
         try:
             remote_events = _request(url, token=None, llave=llave)
         except Exception:
             pass
 
+        max_visto = watermark
         received = 0
         if isinstance(remote_events, list):
             for event in remote_events:
                 if _apply_remote_event(connection, event):
                     received += 1
+                # Avanzar el watermark con la marca mayor recibida (comparando
+                # como fechas, no como texto, por si cambian los formatos).
+                try:
+                    hora = _parse_hora(event.get("creado_en"))
+                    previo = _parse_hora(max_visto)
+                    if hora is not None and (previo is None or hora > previo):
+                        max_visto = event.get("creado_en")
+                except Exception:
+                    pass
+        if max_visto:
+            _save_setting(connection, "ultimo_evento_visto", max_visto)
 
         _save_setting(connection, "ultimo_envio_exitoso", datetime.now().strftime("%I:%M %p"))
         _save_setting(connection, "ultimo_error_global", "")
         connection.commit()
+
+        # Limpieza best-effort: borrar transaccionales viejos para que la nube
+        # no crezca sin fin. Si falla (p.ej. falta el GRANT de sql/04), la
+        # sincronización sigue igual: solo se reintenta la próxima vez.
+        # Como mucho una vez por hora para no sumar peticiones.
+        try:
+            ultima = _setting(connection, "ultima_limpieza")
+            hace_una_hora = (datetime.now(timezone.utc) - timedelta(seconds=3600)).isoformat()
+            if not ultima or ultima < hace_una_hora:
+                corte = (datetime.now(timezone.utc) - timedelta(days=TTL_DIAS)).isoformat()
+                del_url = (SUPABASE_URL + "/rest/v1/mobildesk_eventos?negocio_id=eq." + valid_uuid
+                           + "&tipo=in.(" + ",".join(TIPOS_GC) + ")"
+                           + "&creado_en=lt." + quote(corte, safe=""))
+                _request(del_url, "DELETE", None, llave=llave)
+                _save_setting(connection, "ultima_limpieza", datetime.now(timezone.utc).isoformat())
+                connection.commit()
+        except Exception:
+            pass
         return {"sent": sent, "received": received}
     finally:
         connection.close()

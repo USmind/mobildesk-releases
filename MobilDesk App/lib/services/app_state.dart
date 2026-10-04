@@ -572,6 +572,11 @@ class AppState extends ChangeNotifier {
     outbox.clear();
     seenEvents.clear();
 
+    // Otro negocio = otro historial: sin reset, el watermark viejo filtraria
+    // eventos del negocio nuevo y el enlace quedaria vacio.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastEventTime');
+
     await save();
     notifyListeners();
     await sync();
@@ -655,13 +660,30 @@ class AppState extends ChangeNotifier {
 
       // 2. Descargar eventos del negocio CON PAGINACIÓN (100 por página)
       // Evita descargar todo el historial de una vez y timeouts.
+      // Incremental: con watermark solo se pide lo nuevo desde (marca - overlap).
+      // Sin watermark es la primera vez: descarga completa como siempre.
       const pageSize = 100;
       int offset = 0;
       bool hasMore = true;
+      String? maxVisto;
+      DateTime? wmHora;
+      {
+        final prefs = await SharedPreferences.getInstance();
+        final guardado = prefs.getString('lastEventTime');
+        if (guardado != null) {
+          wmHora = DateTime.tryParse(guardado);
+          maxVisto = guardado;
+        }
+      }
+      // Overlap de 60 min hacia atrás: cubre relojes desfasados y eventos con
+      // igual marca temporal. Los repetidos se descartan solos con seenEvents.
+      final desdeFiltro = wmHora == null
+          ? ''
+          : '&creado_en=gte.${Uri.encodeComponent(wmHora.subtract(const Duration(minutes: 60)).toIso8601String())}';
 
       while (hasMore) {
         final remoteEvents = await _authenticatedApi(
-          '/rest/v1/mobildesk_eventos?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid&order=creado_en.asc&limit=$pageSize&offset=$offset',
+          '/rest/v1/mobildesk_eventos?select=id,tipo,datos,creado_en&negocio_id=eq.$validUuid$desdeFiltro&order=creado_en.asc&limit=$pageSize&offset=$offset',
           'GET',
         );
 
@@ -669,6 +691,14 @@ class AppState extends ChangeNotifier {
           for (final item in remoteEvents) {
             final eventMap = Map<String, dynamic>.from(item);
             final eventId = eventMap['id']?.toString() ?? '';
+            // Avanzar el watermark con la marca mayor recibida.
+            final creada = DateTime.tryParse(eventMap['creado_en']?.toString() ?? '');
+            if (creada != null) {
+              final previa = maxVisto == null ? null : DateTime.tryParse(maxVisto!);
+              if (previa == null || creada.isAfter(previa)) {
+                maxVisto = eventMap['creado_en']?.toString();
+              }
+            }
             if (seenEvents.add(eventId)) {
               final tipo = eventMap['tipo']?.toString() ?? '';
               final datos = Map<String, dynamic>.from(eventMap['datos'] ?? {});
@@ -685,9 +715,27 @@ class AppState extends ChangeNotifier {
         }
       }
 
+      // Guardar el watermark solo si la descarga completo sin error: si se
+      // interrumpio a mitad de paginas, la proxima vez se retoma desde antes
+      // y los repetidos se descartan con seenEvents.
+      if (maxVisto != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('lastEventTime', maxVisto!);
+      }
+
       final now = DateTime.now();
       final timeFormatted = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
       syncStatus = 'Sincronizado ($timeFormatted) · ${products.length} productos';
+      // Aviso de atraso: si el watermark es mas viejo que la ventana de
+      // limpieza (60 dias), el historial antiguo ya no existe en la nube.
+      // No se borra nada local (el outbox propio se conserva); solo se avisa
+      // para que el usuario re-enlace si ve datos desactualizados.
+      final marcaGuardada = maxVisto == null ? null : DateTime.tryParse(maxVisto!);
+      if (marcaGuardada != null &&
+          now.difference(marcaGuardada).inDays > 60) {
+        syncStatus = 'Sincronizado, pero con atraso mayor a 60 días: '
+            're-enlaza el negocio si ves datos desactualizados.';
+      }
       await save();
     } catch (e) {
       final friendlyError = _translateError(e.toString());
