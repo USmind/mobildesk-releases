@@ -1,10 +1,10 @@
 {
-  "version": "2.0.41",
-  "pc_version": "2.0.41",
-  "android_version": "1.2.21",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.41/Instalar-MobilDesk-v2.0.41.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.41/Instalar-MobilDesk-v2.0.41.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.41/MobilDesk-v1.2.21.apk",
-  "pc_sha256": "d68c4f258c8551cdc26159120624f05e22dd462c87c93001859ba4fd7e5ec6a9",
-  "changelog": "Sincronizacion incremental: cada equipo pide solo lo nuevo desde la ultima vez en vez de descargar todo el historial. La PC borra sola eventos viejos (mas de 60 dias) para que la nube no crezca sin fin. Requiere ejecutar sql/04_limpieza.sql."
+  "version": "2.0.42",
+  "pc_version": "2.0.42",
+  "android_version": "1.2.22",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.42/Instalar-MobilDesk-v2.0.42.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.42/Instalar-MobilDesk-v2.0.42.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.42/MobilDesk-v1.2.22.apk",
+  "pc_sha256": "7cef6700066d2121ac72ecc7b059f2fcb2acea03d0ecc0d5f98fd184633d96df",
+  "changelog": "Movimiento en toda la app y el programa: transiciones de pantalla, dialogos con entrada animada, feedback al presionar y listas en cascada. Sin emojis como iconos. Requiere sql/04_limpieza.sql para la limpieza automatica."
 }
