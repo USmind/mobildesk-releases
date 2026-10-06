@@ -1,10 +1,10 @@
 {
-  "version": "2.0.43",
-  "pc_version": "2.0.43",
-  "android_version": "1.2.23",
-  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.43/Instalar-MobilDesk-v2.0.43.exe",
-  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.43/Instalar-MobilDesk-v2.0.43.exe",
-  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.43/MobilDesk-v1.2.23.apk",
-  "pc_sha256": "efccfc9b9c094bd152ebaab10975627b92398be8776c6d66e1b42c9595b1dc44",
-  "changelog": "Rediseño visual Flat + Confianza: paleta slate y azul profundo en PC y App, cifras de dinero tabulares, 15 emojis reemplazados. Movimiento en toda la interfaz."
+  "version": "2.0.44",
+  "pc_version": "2.0.44",
+  "android_version": "1.2.24",
+  "download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.44/Instalar-MobilDesk-v2.0.44.exe",
+  "pc_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.44/Instalar-MobilDesk-v2.0.44.exe",
+  "android_download_url": "https://github.com/USmind/mobildesk-releases/releases/download/v2.0.44/MobilDesk-v1.2.24.apk",
+  "pc_sha256": "23cbbf9c2eb7cfa7a055ef9686b1686115e717f9cf5764e2a7e79b32e069ec69",
+  "changelog": "Identidad esmeralda: botones y acentos verdes, cifras tabulares, etiquetas en oracion, sin patrones genericos. PC y App con la misma paleta."
 }
